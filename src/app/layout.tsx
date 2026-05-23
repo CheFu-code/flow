@@ -13,9 +13,9 @@ const geistMono = Geist_Mono({
 });
 
 export const metadata: Metadata = {
-  title: "Flow | Resend Email Console",
+  title: "Flow Mail | CheFu Inc",
   description:
-    "A professional Resend-powered email console for campaigns, templates, previews, and audience sends.",
+    "CheFu Inc's Resend-powered email ecosystem for inbox activity, campaigns, templates, previews, and audience sends.",
 };
 
 export default function RootLayout({
