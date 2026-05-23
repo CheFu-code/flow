@@ -24,6 +24,7 @@ import {
   renderEmailShell,
   textToHtml,
 } from '@/lib/email-templates';
+import { apiUrl, flowHeaders } from '@/lib/api';
 import type { FlowRecipient } from '@/lib/email-schema';
 
 type Delivery = {
@@ -81,7 +82,7 @@ export default function FlowConsole() {
   const [variables, setVariables] = useState<Record<string, string>>(defaultVariables);
 
   useEffect(() => {
-    fetch('/api/config')
+    fetch(apiUrl('/flow/config'))
       .then(response => response.json())
       .then((nextConfig: FlowConfig) => {
         setConfig(nextConfig);
@@ -174,9 +175,9 @@ export default function FlowConsole() {
     setStatus(null);
 
     try {
-      const response = await fetch('/api/send', {
+      const response = await fetch(apiUrl('/flow/send'), {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
+        headers: { 'Content-Type': 'application/json', ...flowHeaders() },
         body: JSON.stringify({
           action,
           audienceName,
