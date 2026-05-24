@@ -17,7 +17,7 @@ import {
 } from '@/components/ui/card';
 import { friendlyAuthError } from '@/components/auth/auth-errors';
 import { clearSessionCookie, syncSessionCookie } from '@/lib/client-session';
-import { auth } from '@/lib/firebase';
+import { getFirebaseAuth } from '@/lib/firebase';
 import styles from './AuthGate.module.css';
 
 type AuthGateProps = {
@@ -44,8 +44,25 @@ export function AuthGate({ children }: AuthGateProps) {
 
   useEffect(() => {
     let active = true;
+    let currentAuth: ReturnType<typeof getFirebaseAuth>;
 
-    const unsubscribe = onAuthStateChanged(auth, nextUser => {
+    try {
+      currentAuth = getFirebaseAuth();
+    } catch (error) {
+      queueMicrotask(() => {
+        if (!active) return;
+        setGateState({
+          message: friendlyAuthError(error),
+          status: 'error',
+          user: null,
+        });
+      });
+      return () => {
+        active = false;
+      };
+    }
+
+    const unsubscribe = onAuthStateChanged(currentAuth, nextUser => {
       if (!nextUser) {
         if (active) {
           setGateState({
@@ -86,13 +103,15 @@ export function AuthGate({ children }: AuthGateProps) {
   }, [loginUrl, router]);
 
   const handleSignOut = useCallback(async () => {
-    await Promise.allSettled([clearSessionCookie(), signOut(auth)]);
+    const currentAuth = getFirebaseAuth();
+    await Promise.allSettled([clearSessionCookie(), signOut(currentAuth)]);
     router.replace('/login');
     router.refresh();
   }, [router]);
 
   const handleRetrySignIn = useCallback(async () => {
-    await Promise.allSettled([clearSessionCookie(), signOut(auth)]);
+    const currentAuth = getFirebaseAuth();
+    await Promise.allSettled([clearSessionCookie(), signOut(currentAuth)]);
     router.replace(loginUrl);
     router.refresh();
   }, [loginUrl, router]);

@@ -1,9 +1,10 @@
 'use client';
 
 import { apiUrl } from '@/lib/api';
-import { auth } from '@/lib/firebase';
+import { getFirebaseAuth } from '@/lib/firebase';
 
 export async function syncSessionCookie() {
+  const auth = getFirebaseAuth();
   const currentUser = auth.currentUser;
 
   if (!currentUser) {

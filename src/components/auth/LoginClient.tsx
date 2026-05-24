@@ -6,21 +6,17 @@ import {
   sendPasswordResetEmail,
   signInWithEmailAndPassword,
   signInWithPopup,
+  type Auth,
 } from 'firebase/auth';
 import {
   AlertCircle,
   CheckCircle2,
   Loader2,
-  LockKeyhole,
-  Mail,
-  ShieldCheck,
-  Sparkles,
 } from 'lucide-react';
 import { useRouter, useSearchParams } from 'next/navigation';
 import { useEffect, useMemo, useState, useTransition } from 'react';
 import { friendlyAuthError } from '@/components/auth/auth-errors';
 import { Alert, AlertDescription } from '@/components/ui/alert';
-import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import {
   Card,
@@ -32,7 +28,7 @@ import {
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { syncSessionCookie } from '@/lib/client-session';
-import { auth } from '@/lib/firebase';
+import { getFirebaseAuth } from '@/lib/firebase';
 
 export function LoginClient() {
   const router = useRouter();
@@ -51,7 +47,19 @@ export function LoginClient() {
   const [resetPending, startResetTransition] = useTransition();
 
   useEffect(() => {
-    return onAuthStateChanged(auth, nextUser => {
+    let currentAuth: Auth;
+
+    try {
+      currentAuth = getFirebaseAuth();
+    } catch (nextError) {
+      queueMicrotask(() => {
+        setError(friendlyAuthError(nextError));
+        setCheckingSession(false);
+      });
+      return undefined;
+    }
+
+    return onAuthStateChanged(currentAuth, nextUser => {
       if (!nextUser) {
         setCheckingSession(false);
         return;
@@ -81,7 +89,8 @@ export function LoginClient() {
 
     startEmailTransition(async () => {
       try {
-        await signInWithEmailAndPassword(auth, email.trim(), password);
+        const currentAuth = getFirebaseAuth();
+        await signInWithEmailAndPassword(currentAuth, email.trim(), password);
         await completeSignIn();
       } catch (nextError) {
         setError(friendlyAuthError(nextError));
@@ -95,7 +104,8 @@ export function LoginClient() {
 
     startGoogleTransition(async () => {
       try {
-        await signInWithPopup(auth, new GoogleAuthProvider());
+        const currentAuth = getFirebaseAuth();
+        await signInWithPopup(currentAuth, new GoogleAuthProvider());
         await completeSignIn();
       } catch (nextError) {
         setError(friendlyAuthError(nextError));
@@ -115,7 +125,8 @@ export function LoginClient() {
 
     startResetTransition(async () => {
       try {
-        await sendPasswordResetEmail(auth, resetEmail);
+        const currentAuth = getFirebaseAuth();
+        await sendPasswordResetEmail(currentAuth, resetEmail);
         setResetSent(true);
       } catch (nextError) {
         setError(friendlyAuthError(nextError));

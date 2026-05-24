@@ -1,11 +1,123 @@
+:root {
+  --auth-gate-shell-bg:
+    linear-gradient(180deg, rgba(255, 255, 255, 0.76), transparent 260px),
+    #f5f7fb;
+  --auth-gate-card-bg: #ffffff;
+  --auth-gate-card-border: #dbe3ee;
+  --auth-gate-mark-bg: #0f172a;
+  --auth-gate-mark-color: #ffffff;
+  --auth-gate-title: #0f172a;
+  --auth-gate-copy: #475569;
+  --flow-topbar-bg: rgba(248, 250, 252, 0.96);
+  --flow-topbar-border: #e1e7ef;
+  --flow-topbar-title: #0f172a;
+  --flow-topbar-mark-bg: #0f172a;
+  --flow-topbar-mark-color: #ffffff;
+  --flow-topbar-search-bg: #ffffff;
+  --flow-topbar-search-border: #dbe3ee;
+  --flow-topbar-search-text: #0f172a;
+  --flow-topbar-search-muted: #64748b;
+  --flow-topbar-search-placeholder: #64748b;
+  --flow-topbar-focus: #2563eb;
+  --flow-topbar-focus-ring: rgba(37, 99, 235, 0.12);
+  --flow-topbar-icon: #334155;
+  --flow-topbar-icon-hover-bg: #eef3f8;
+  --flow-topbar-icon-hover: #0f172a;
+  --flow-topbar-compose-bg: #0f172a;
+  --flow-topbar-compose-text: #ffffff;
+  --flow-topbar-compose-hover: #1e293b;
+  --flow-sidebar-compose-bg: #0f172a;
+  --flow-sidebar-compose-text: #ffffff;
+  --flow-sidebar-compose-border: rgba(15, 23, 42, 0.08);
+  --flow-sidebar-compose-hover-bg: #0f766e;
+  --flow-sidebar-compose-hover-border: rgba(15, 118, 110, 0.28);
+  --flow-sidebar-compose-shadow: 0 10px 22px rgba(15, 23, 42, 0.14);
+  --flow-sidebar-compose-icon-bg: rgba(255, 255, 255, 0.14);
+  --flow-sidebar-compose-icon: #ffffff;
+  --inbox-panel-bg: #ffffff;
+  --inbox-panel-border: #dbe3ee;
+  --inbox-panel-shadow:
+    0 1px 0 rgba(255, 255, 255, 0.84) inset,
+    0 18px 48px rgba(15, 23, 42, 0.08);
+  --inbox-divider: #e7edf5;
+  --inbox-row-divider: #eef2f7;
+  --inbox-row-bg: #ffffff;
+  --inbox-row-hover: #f8fbff;
+  --inbox-row-hover-shadow:
+    inset 3px 0 0 #2563eb,
+    0 8px 22px rgba(15, 23, 42, 0.08);
+  --inbox-row-unread: #fbfdff;
+  --inbox-title: #0f172a;
+  --inbox-subtitle: #475569;
+  --inbox-subject: #1e293b;
+  --inbox-icon-bg: #eef6ff;
+  --inbox-icon-color: #1457d9;
+  --inbox-avatar-bg: #f1f5f9;
+  --inbox-avatar-color: #334155;
+  --inbox-unread-avatar-bg: #dbeafe;
+  --inbox-unread-avatar-color: #1d4ed8;
+  --inbox-unread-badge-bg: #dbeafe;
+  --inbox-unread-badge-text: #1d4ed8;
+  --inbox-success-bg: #f0fdf4;
+  --inbox-success-border: #bbf7d0;
+  --inbox-success-text: #166534;
+  --inbox-error-bg: #fef2f2;
+  --inbox-icon-hover-bg: #eef3f8;
+  --inbox-icon-hover: #0f172a;
+  --reader-bg: #ffffff;
+  --reader-card-bg: #f8fafc;
+  --reader-border: #dbe3ee;
+  --reader-header-glow: rgba(37, 99, 235, 0.08);
+  --reader-title: #0f172a;
+  --reader-text: #1e293b;
+  --reader-muted: #475569;
+  --reader-badge-bg: #dbeafe;
+  --reader-badge-text: #1d4ed8;
+  --reader-avatar-bg: #dbeafe;
+  --reader-avatar-text: #1d4ed8;
+  --reader-soft-bg: #eef2f7;
+  --reader-link: #1457d9;
+  --reader-link-hover: #0f3ea8;
+  --reader-document-glow: rgba(37, 99, 235, 0.04);
+}
+
 .dark {
-  --auth-gate-shell-bg: #0d1117;
+  --auth-gate-shell-bg:
+    radial-gradient(circle at 18% 0%, rgba(20, 87, 217, 0.18), transparent 28rem),
+    linear-gradient(135deg, rgba(15, 118, 110, 0.12), transparent 34rem),
+    #0d1117;
   --auth-gate-card-bg: #111827;
   --auth-gate-card-border: #273445;
   --auth-gate-mark-bg: #f8fafc;
   --auth-gate-mark-color: #0f172a;
   --auth-gate-title: #f8fafc;
   --auth-gate-copy: #9aa8ba;
+  --flow-topbar-bg: rgba(13, 17, 23, 0.96);
+  --flow-topbar-border: #273445;
+  --flow-topbar-title: #f8fafc;
+  --flow-topbar-mark-bg: #f8fafc;
+  --flow-topbar-mark-color: #0f172a;
+  --flow-topbar-search-bg: #111827;
+  --flow-topbar-search-border: #273445;
+  --flow-topbar-search-text: #f8fafc;
+  --flow-topbar-search-muted: #9aa8ba;
+  --flow-topbar-search-placeholder: #718096;
+  --flow-topbar-focus: #38bdf8;
+  --flow-topbar-focus-ring: rgba(56, 189, 248, 0.11);
+  --flow-topbar-icon: #dbe7f5;
+  --flow-topbar-icon-hover-bg: #172033;
+  --flow-topbar-icon-hover: #ffffff;
+  --flow-topbar-compose-bg: #f8fafc;
+  --flow-topbar-compose-text: #0f172a;
+  --flow-topbar-compose-hover: #e2e8f0;
+  --flow-sidebar-compose-bg: #f8fafc;
+  --flow-sidebar-compose-text: #0f172a;
+  --flow-sidebar-compose-border: rgba(148, 163, 184, 0.18);
+  --flow-sidebar-compose-hover-bg: #67e8f9;
+  --flow-sidebar-compose-hover-border: rgba(103, 232, 249, 0.36);
+  --flow-sidebar-compose-shadow: 0 10px 22px rgba(0, 0, 0, 0.22);
+  --flow-sidebar-compose-icon-bg: rgba(15, 23, 42, 0.1);
+  --flow-sidebar-compose-icon: #0f172a;
   --inbox-panel-bg: #111827;
   --inbox-panel-border: #273445;
   --inbox-panel-shadow: 0 18px 48px rgba(0, 0, 0, 0.25);
@@ -13,6 +125,9 @@
   --inbox-row-divider: #273445;
   --inbox-row-bg: #111827;
   --inbox-row-hover: #172033;
+  --inbox-row-hover-shadow:
+    inset 3px 0 0 #38bdf8,
+    0 8px 22px rgba(0, 0, 0, 0.24);
   --inbox-row-unread: #172033;
   --inbox-title: #f8fafc;
   --inbox-subtitle: #9aa8ba;
@@ -23,4 +138,27 @@
   --inbox-avatar-color: #7dd3fc;
   --inbox-unread-avatar-bg: #1e3a5f;
   --inbox-unread-avatar-color: #93c5fd;
+  --inbox-unread-badge-bg: rgba(96, 165, 250, 0.16);
+  --inbox-unread-badge-text: #93c5fd;
+  --inbox-success-bg: rgba(34, 197, 94, 0.1);
+  --inbox-success-border: rgba(34, 197, 94, 0.28);
+  --inbox-success-text: #86efac;
+  --inbox-error-bg: rgba(239, 68, 68, 0.12);
+  --inbox-icon-hover-bg: #172033;
+  --inbox-icon-hover: #ffffff;
+  --reader-bg: #0d1117;
+  --reader-card-bg: #111827;
+  --reader-border: #273445;
+  --reader-header-glow: rgba(125, 211, 252, 0.08);
+  --reader-title: #f8fafc;
+  --reader-text: #dbe7f5;
+  --reader-muted: #9aa8ba;
+  --reader-badge-bg: rgba(125, 211, 252, 0.13);
+  --reader-badge-text: #7dd3fc;
+  --reader-avatar-bg: #172033;
+  --reader-avatar-text: #7dd3fc;
+  --reader-soft-bg: #172033;
+  --reader-link: #7dd3fc;
+  --reader-link-hover: #bae6fd;
+  --reader-document-glow: rgba(125, 211, 252, 0.05);
 }

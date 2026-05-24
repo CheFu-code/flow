@@ -1,14 +1,4 @@
 .shell {
-  --auth-gate-shell-bg:
-    radial-gradient(circle at 18% 0%, rgba(20, 87, 217, 0.18), transparent 28rem),
-    linear-gradient(135deg, rgba(15, 118, 110, 0.12), transparent 34rem),
-    #0d1117;
-  --auth-gate-card-bg: #111827;
-  --auth-gate-card-border: #273445;
-  --auth-gate-mark-bg: #f8fafc;
-  --auth-gate-mark-color: #0f172a;
-  --auth-gate-title: #f8fafc;
-  --auth-gate-copy: #9aa8ba;
   display: grid;
   min-height: 100dvh;
   place-items: center;
