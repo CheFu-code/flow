@@ -1,5 +1,14 @@
 export function friendlyAuthError(error: unknown) {
   const code = (error as { code?: string })?.code;
+  const message = error instanceof Error ? error.message : '';
+
+  if (
+    /Flow access is restricted|not approved for Flow Mail|approved sender accounts/i.test(
+      message,
+    )
+  ) {
+    return 'This account does not have access to Flow Mail. Please sign in with an approved CheFu sender account.';
+  }
 
   if (code === 'auth/invalid-email') return 'Enter a valid email address.';
   if (code === 'auth/invalid-credential') {
@@ -16,5 +25,5 @@ export function friendlyAuthError(error: unknown) {
     return 'This account requires MFA. Sign in through CheFu Academy first.';
   }
 
-  return error instanceof Error ? error.message : 'Authentication failed.';
+  return message || 'Authentication failed.';
 }

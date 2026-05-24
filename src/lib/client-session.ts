@@ -29,15 +29,17 @@ export async function syncSessionCookie() {
       message?: string;
       requestId?: string;
     };
-    const requestId = data.requestId ? ` Request ID: ${data.requestId}` : '';
+    const message =
+      data.error || data.message || 'Failed to sync auth session.';
 
     if (response.status === 403) {
       await Promise.allSettled([clearSessionCookie(), signOut(auth)]);
+      throw new Error(message);
     }
 
-    throw new Error(
-      `${data.error || data.message || 'Failed to sync auth session.'}${requestId}`,
-    );
+    const requestId = data.requestId ? ` Request ID: ${data.requestId}` : '';
+
+    throw new Error(`${message}${requestId}`);
   }
 }
 
