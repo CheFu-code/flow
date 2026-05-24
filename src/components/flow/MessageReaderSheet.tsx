@@ -183,6 +183,20 @@ function isGmailReactionText(value: string) {
   return /\breacted via\s+Gmail\b/i.test(value);
 }
 
+function isGmailReactionMessage(value: string) {
+  const blocks = value
+    .split(/\n{2,}/)
+    .map(block => block.trim())
+    .filter(Boolean);
+
+  return (
+    /emojiReactionEmail/i.test(value) ||
+    blocks.some((block, index) =>
+      isEmojiOnly(block) && isGmailReactionText(blocks[index + 1] || ''),
+    )
+  );
+}
+
 function isReplyHeaderLine(value: string) {
   return /^(On .+ wrote:|From: .+|Sent: .+|To: .+|Subject: .+)/i.test(value.trim());
 }
@@ -276,18 +290,23 @@ export function MessageReaderSheet({
   const participant = thread ? getParticipantLabel(thread) : '';
   const sentAt = thread ? formatMessageTime(thread.sentAt || thread.receivedAt) : '';
   const showDesignedEmail = Boolean(thread?.html && thread.direction === 'outbound');
+  const plainText = thread ? getPlainText(thread) : '';
+  const isReactionMessage = isGmailReactionMessage(plainText);
   const threadId = thread?.id || '';
   const storedAttachmentItems = thread?.attachmentItems || [];
   const hasAttachmentLookup = Boolean(
     threadId && attachmentLookup?.threadId === threadId,
   );
-  const attachmentItems = storedAttachmentItems.length
+  const rawAttachmentItems = storedAttachmentItems.length
     ? storedAttachmentItems
     : hasAttachmentLookup
       ? attachmentLookup?.items || []
       : [];
+  const attachmentItems = isReactionMessage ? [] : rawAttachmentItems;
+  const reportedAttachmentCount = isReactionMessage ? 0 : thread?.attachments || 0;
+  const attachmentCount = attachmentItems.length || reportedAttachmentCount;
   const shouldLoadAttachmentItems = Boolean(
-    threadId && thread?.attachments && !storedAttachmentItems.length,
+    threadId && reportedAttachmentCount && !storedAttachmentItems.length,
   );
   const attachmentsLoading = shouldLoadAttachmentItems && !hasAttachmentLookup;
   const attachmentLoadError = hasAttachmentLookup
@@ -452,15 +471,15 @@ export function MessageReaderSheet({
                     </strong>
                   </div>
                 </div>
-                {thread.attachments ? (
+                {attachmentCount ? (
                   <span className={styles.attachmentPill}>
                     <Paperclip className="size-3.5" />
-                    {thread.attachments}
+                    {attachmentCount}
                   </span>
                 ) : null}
               </section>
 
-              {attachmentItems.length || thread.attachments ? (
+              {attachmentCount ? (
                 <section className={styles.attachmentsPanel} aria-label="Attachments">
                   <div className={styles.attachmentsHeader}>
                     <div>
@@ -468,10 +487,7 @@ export function MessageReaderSheet({
                       <strong>Attachments</strong>
                     </div>
                     <span>
-                      {attachmentItems.length || thread.attachments} file
-                      {(attachmentItems.length || thread.attachments) === 1
-                        ? ''
-                        : 's'}
+                      {attachmentCount} file{attachmentCount === 1 ? '' : 's'}
                     </span>
                   </div>
 
@@ -566,7 +582,7 @@ export function MessageReaderSheet({
                   />
                 ) : (
                   <div className={styles.plainText}>
-                    {renderPlainTextMessage(getPlainText(thread), thread.id)}
+                    {renderPlainTextMessage(plainText, thread.id)}
                   </div>
                 )}
               </article>
