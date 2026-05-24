@@ -4,7 +4,7 @@ import { LoginClient } from '@/components/auth/LoginClient';
 
 export const metadata: Metadata = {
   title: 'Sign in | Flow Mail',
-  description: 'Sign in to the CheFu Flow Mail console.',
+  description: 'Sign in to Flow Mail.',
 };
 
 export default function LoginPage() {
