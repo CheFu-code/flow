@@ -42,6 +42,8 @@ export type MailThread = {
   text?: string;
   html?: string;
   receivedAt?: string;
+  messageId?: string;
+  resendEmailId?: string;
   sentAt?: string;
   unread: boolean;
   starred: boolean;
