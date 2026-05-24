@@ -286,8 +286,30 @@ export default function FlowConsole({ authUser, onSignOut }: FlowConsoleProps) {
   };
 
   const openMessage = (threadId: string) => {
+    const thread = messages.find(message => message.id === threadId);
+
     setSelectedThreadId(threadId);
     setMessageOpen(true);
+
+    if (!thread?.unread) return;
+
+    setMessages(prev =>
+      prev.map(message =>
+        message.id === threadId ? { ...message, unread: false } : message,
+      ),
+    );
+
+    fetch(apiUrl(`/flow/messages/${threadId}/read`), {
+      credentials: 'include',
+      headers: flowHeaders(),
+      method: 'POST',
+    }).catch(() => {
+      setMessages(prev =>
+        prev.map(message =>
+          message.id === threadId ? { ...message, unread: true } : message,
+        ),
+      );
+    });
   };
 
   return (

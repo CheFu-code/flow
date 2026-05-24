@@ -49,6 +49,16 @@ export type MailThread = {
   starred: boolean;
   label?: string;
   attachments: number;
+  attachmentItems?: FlowAttachment[];
+};
+
+export type FlowAttachment = {
+  id: string;
+  filename: string;
+  contentType?: string;
+  contentDisposition?: string | null;
+  contentId?: string | null;
+  size?: number;
 };
 
 export type MessagesResponse = {

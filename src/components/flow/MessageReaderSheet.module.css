@@ -152,6 +152,145 @@
   animation: readerEnter 260ms 60ms ease-out both;
 }
 
+.attachmentsPanel {
+  display: grid;
+  gap: 12px;
+  margin-top: 14px;
+  border: 1px solid var(--reader-border);
+  border-radius: 10px;
+  background: var(--reader-card-bg);
+  padding: 14px;
+  animation: readerEnter 240ms 40ms ease-out both;
+}
+
+.attachmentsHeader {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  color: var(--reader-muted);
+  font-size: 12px;
+  font-weight: 720;
+}
+
+.attachmentsHeader > div {
+  display: inline-flex;
+  min-width: 0;
+  align-items: center;
+  gap: 8px;
+  color: var(--reader-text);
+}
+
+.attachmentsHeader strong {
+  color: var(--reader-text);
+  font-size: 13px;
+}
+
+.attachmentsHeader span {
+  flex: 0 0 auto;
+}
+
+.attachmentGrid {
+  display: grid;
+  gap: 10px;
+}
+
+.attachmentCard {
+  display: grid;
+  min-width: 0;
+  grid-template-columns: 42px minmax(0, 1fr) auto;
+  align-items: center;
+  gap: 12px;
+  border: 1px solid var(--reader-border);
+  border-radius: 10px;
+  background: var(--reader-attachment-bg);
+  padding: 10px;
+  transition:
+    border-color 150ms ease,
+    background 150ms ease,
+    transform 150ms ease;
+}
+
+.attachmentCard:hover {
+  border-color: var(--reader-attachment-hover-border);
+  background: var(--reader-attachment-hover-bg);
+  transform: translateY(-1px);
+}
+
+.attachmentIcon {
+  display: grid;
+  width: 42px;
+  height: 42px;
+  place-items: center;
+  border-radius: 9px;
+  background: var(--reader-soft-bg);
+  color: var(--reader-link);
+}
+
+.attachmentCopy {
+  display: grid;
+  min-width: 0;
+  gap: 3px;
+}
+
+.attachmentCopy strong,
+.attachmentCopy span {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.attachmentCopy strong {
+  color: var(--reader-text);
+  font-size: 13px;
+  font-weight: 750;
+}
+
+.attachmentCopy span {
+  color: var(--reader-muted);
+  font-size: 12px;
+}
+
+.attachmentAction[data-slot="button"] {
+  height: 32px;
+  gap: 6px;
+  border-radius: 8px;
+  color: var(--reader-link);
+  font-weight: 730;
+}
+
+.attachmentAction[data-slot="button"]:hover {
+  background: var(--reader-soft-bg);
+  color: var(--reader-link-hover);
+}
+
+.attachmentEmpty {
+  display: inline-flex;
+  align-items: center;
+  gap: 9px;
+  border: 1px solid var(--reader-border);
+  border-radius: 10px;
+  background: var(--reader-attachment-bg);
+  padding: 12px;
+  color: var(--reader-muted);
+  font-size: 13px;
+  font-weight: 650;
+  line-height: 1.4;
+}
+
+.attachmentEmpty svg {
+  flex: 0 0 auto;
+  color: var(--reader-link);
+}
+
+.attachmentError {
+  margin: 0;
+  color: var(--reader-muted);
+  font-size: 12px;
+  line-height: 1.4;
+}
+
 .messageToolbar {
   display: flex;
   align-items: center;
@@ -184,10 +323,10 @@
 
 .plainText {
   display: grid;
-  gap: 14px;
+  gap: 16px;
   max-width: 68ch;
   margin: 0 auto;
-  padding: 26px 24px 30px;
+  padding: 28px 24px 32px;
   color: var(--reader-text);
   font-size: 15px;
   line-height: 1.75;
@@ -212,12 +351,59 @@
 }
 
 .plainText blockquote {
-  margin: 6px 0 0;
+  display: grid;
+  gap: 8px;
+  margin: 4px 0 0;
   border-left: 3px solid var(--reader-border);
   border-radius: 0 8px 8px 0;
   background: var(--reader-soft-bg);
   padding: 14px 16px;
   color: var(--reader-muted);
+}
+
+.plainText blockquote cite {
+  color: var(--reader-quote-title);
+  font-size: 12px;
+  font-style: normal;
+  font-weight: 750;
+  line-height: 1.45;
+}
+
+.plainText blockquote span {
+  display: block;
+}
+
+.reactionCard {
+  display: grid;
+  grid-template-columns: 54px minmax(0, 1fr);
+  align-items: center;
+  gap: 14px;
+  border: 1px solid var(--reader-reaction-border);
+  border-radius: 12px;
+  background:
+    linear-gradient(135deg, var(--reader-reaction-glow), transparent 62%),
+    var(--reader-reaction-bg);
+  padding: 14px 16px;
+}
+
+.reactionEmoji {
+  display: grid;
+  width: 54px;
+  height: 54px;
+  place-items: center;
+  border-radius: 14px;
+  background: var(--reader-reaction-emoji-bg);
+  font-size: 32px;
+  line-height: 1;
+  box-shadow: 0 12px 24px var(--reader-reaction-shadow);
+}
+
+.reactionCard p {
+  margin: 0;
+  color: var(--reader-text);
+  font-size: 14px;
+  font-weight: 650;
+  line-height: 1.55;
 }
 
 .messageCard:has(.plainText) {
@@ -257,6 +443,20 @@
     width: fit-content;
   }
 
+  .attachmentCard {
+    grid-template-columns: 38px minmax(0, 1fr);
+  }
+
+  .attachmentIcon {
+    width: 38px;
+    height: 38px;
+  }
+
+  .attachmentAction[data-slot="button"] {
+    grid-column: 1 / -1;
+    justify-content: center;
+  }
+
   .htmlPreview {
     min-height: 460px;
   }
@@ -265,6 +465,18 @@
     max-width: none;
     padding: 20px 16px 24px;
     font-size: 14px;
+  }
+
+  .reactionCard {
+    grid-template-columns: 46px minmax(0, 1fr);
+    gap: 12px;
+    padding: 12px;
+  }
+
+  .reactionEmoji {
+    width: 46px;
+    height: 46px;
+    font-size: 28px;
   }
 }
 
@@ -282,7 +494,13 @@
 
 @media (prefers-reduced-motion: reduce) {
   .metaCard,
-  .messageCard {
+  .messageCard,
+  .attachmentsPanel {
     animation: none;
+  }
+
+  .attachmentCard,
+  .attachmentCard:hover {
+    transform: none;
   }
 }

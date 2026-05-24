@@ -107,6 +107,10 @@ export function LoginClient() {
         const currentAuth = getFirebaseAuth();
         await signInWithPopup(currentAuth, new GoogleAuthProvider());
         await completeSignIn();
+        setEmail('');
+        setPassword('');
+        router.replace(nextPath);
+        router.refresh();
       } catch (nextError) {
         setError(friendlyAuthError(nextError));
       }
