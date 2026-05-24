@@ -1,7 +1,10 @@
 .sheet[data-slot="sheet-content"] {
   width: min(760px, 100vw);
   max-width: min(760px, 100vw);
+  height: 100dvh;
+  max-height: 100dvh;
   gap: 0;
+  overflow: hidden;
   border-color: var(--reader-border);
   background: var(--reader-bg);
   color: var(--reader-text);
@@ -11,6 +14,7 @@
 }
 
 .header {
+  flex: 0 0 auto;
   gap: 10px;
   border-bottom: 1px solid var(--reader-border);
   padding: 22px 24px 18px;
@@ -67,9 +71,12 @@
 }
 
 .content {
+  flex: 1 1 auto;
   min-height: 0;
   overflow-y: auto;
+  overscroll-behavior: contain;
   padding: 18px 24px 24px;
+  scrollbar-gutter: stable;
 }
 
 .metaCard,
@@ -316,6 +323,7 @@
 .htmlPreview {
   display: block;
   width: 100%;
+  height: min(720px, calc(100dvh - 260px));
   min-height: 560px;
   border: 0;
   background: #ffffff;
@@ -458,6 +466,7 @@
   }
 
   .htmlPreview {
+    height: min(620px, calc(100dvh - 220px));
     min-height: 460px;
   }
 
