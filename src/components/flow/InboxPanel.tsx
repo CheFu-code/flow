@@ -1,18 +1,20 @@
 import {
   AlertCircle,
   CheckCircle2,
-  SearchX,
   Inbox,
+  MailOpen,
   Paperclip,
   RefreshCcw,
+  SearchX,
   Star,
 } from 'lucide-react';
 import { Alert, AlertDescription } from '@/components/ui/alert';
+import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Skeleton } from '@/components/ui/skeleton';
 import { formatInboxTime } from './date';
-import { EmptyState } from './shared';
 import type { FolderName, MailThread, StatusMessage } from './types';
+import styles from './InboxPanel.module.css';
 
 type InboxPanelProps = {
   activeFolder: FolderName;
@@ -29,6 +31,25 @@ type InboxPanelProps = {
   totalCount: number;
 };
 
+const folderLabels: Record<FolderName, string> = {
+  archived: 'Archived',
+  campaigns: 'Campaigns',
+  inbox: 'Inbox',
+  scheduled: 'Scheduled',
+  sent: 'Sent',
+  trash: 'Trash',
+};
+
+function getParticipant(thread: MailThread) {
+  return thread.direction === 'outbound'
+    ? `To ${thread.to.join(', ')}`
+    : thread.from;
+}
+
+function getInitial(value: string) {
+  return value.trim().charAt(0).toUpperCase() || 'F';
+}
+
 export function InboxPanel({
   activeFolder,
   density,
@@ -44,13 +65,65 @@ export function InboxPanel({
   totalCount,
 }: InboxPanelProps) {
   const hasQuery = query.trim().length > 0;
+  const visibleCount = messageCounts[activeFolder] || messages.length;
+  const panelClassName = [
+    styles.panel,
+    density === 'compact' ? styles.compact : '',
+  ]
+    .filter(Boolean)
+    .join(' ');
 
   return (
-    <section className={`gmail-inbox-panel ${density}`}>
+    <section className={panelClassName} aria-label={`${folderLabels[activeFolder]} mail`}>
+      <header className={styles.header}>
+        <div className={styles.titleGroup}>
+          <div className={styles.iconMark} aria-hidden="true">
+            <Inbox className="size-5" />
+          </div>
+          <div>
+            <h2>{folderLabels[activeFolder]}</h2>
+            <p>
+              {hasQuery
+                ? `${filteredCount} of ${totalCount} messages match "${query}"`
+                : `${visibleCount} messages in this folder`}
+            </p>
+          </div>
+        </div>
+
+        <div className={styles.actions}>
+          {hasQuery ? (
+            <Button
+              type="button"
+              variant="outline"
+              size="sm"
+              className={styles.clearButton}
+              onClick={onSearchClear}
+            >
+              <SearchX className="size-4" />
+              Clear
+            </Button>
+          ) : null}
+          <Button
+            type="button"
+            variant="ghost"
+            size="icon"
+            className={styles.iconButton}
+            aria-label="Refresh messages"
+            onClick={onRefresh}
+          >
+            <RefreshCcw className="size-4" />
+          </Button>
+        </div>
+      </header>
+
       {status ? (
         <Alert
           variant={status.kind === 'error' ? 'destructive' : 'default'}
-          className={`status-banner ${status.kind}`}
+          className={
+            status.kind === 'error'
+              ? `${styles.status} ${styles.errorStatus}`
+              : `${styles.status} ${styles.successStatus}`
+          }
         >
           {status.kind === 'error' ? (
             <AlertCircle className="size-4" />
@@ -61,98 +134,93 @@ export function InboxPanel({
         </Alert>
       ) : null}
 
-      <div className="gmail-toolbar">
-        <div className="toolbar-left">
-          <Button
-            type="button"
-            variant="ghost"
-            size="icon"
-            aria-label="Refresh"
-            onClick={onRefresh}
-          >
-            <RefreshCcw className="size-4" />
-          </Button>
-          <div>
-            <strong>{activeFolder[0].toUpperCase() + activeFolder.slice(1)}</strong>
-            {hasQuery ? (
-              <span>
-                {filteredCount} of {totalCount} matching &quot;{query}&quot;
-              </span>
-            ) : (
-              <span>{messageCounts[activeFolder] || messages.length} messages</span>
-            )}
-          </div>
-        </div>
-        <div className="toolbar-right">
-          {hasQuery ? (
-            <Button type="button" variant="ghost" size="sm" onClick={onSearchClear}>
-              <SearchX className="size-4" />
-              Clear search
-            </Button>
-          ) : null}
-        </div>
-      </div>
-
-      <div className="flow-mail-strip" aria-label="Current mailbox">
-        <div>
-          <Inbox className="size-5" />
-          <span>
-            {hasQuery
-              ? 'Search is filtering the live mailbox below.'
-              : 'Messages below come from the selected Flow folder.'}
-          </span>
-        </div>
-      </div>
-
-      <div className="gmail-message-list">
+      <div className={styles.list}>
         {isLoadingMessages ? (
-          <div className="gmail-skeleton-list" aria-label="Loading mail">
+          <div className={styles.skeletonList} aria-label="Loading mail">
             {Array.from({ length: 8 }).map((_, index) => (
-              <div className="gmail-skeleton-row" key={index}>
-                <Skeleton className="size-4 rounded-sm" />
-                <Skeleton className="size-5 rounded-full" />
-                <Skeleton className="h-4 w-[18%]" />
-                <Skeleton className="h-4 flex-1" />
+              <div className={styles.skeletonRow} key={index}>
+                <Skeleton className={styles.skeletonAvatar} />
+                <div>
+                  <Skeleton className="h-4 w-36" />
+                  <Skeleton className="h-3 w-full" />
+                </div>
                 <Skeleton className="h-4 w-14" />
               </div>
             ))}
           </div>
         ) : messages.length === 0 ? (
-          <EmptyState
-            title="No mail here yet"
-            body={
-              activeFolder === 'inbox'
-                ? 'New messages sent to your Flow address will appear here.'
-                : 'Messages you send or move to this folder will appear here.'
-            }
-          />
+          <div className={styles.emptyState}>
+            <div className={styles.emptyMark} aria-hidden="true">
+              <MailOpen className="size-6" />
+            </div>
+            <h3>{hasQuery ? 'No matching messages' : 'No mail here yet'}</h3>
+            <p>
+              {hasQuery
+                ? 'Try a different sender, subject, preview, or recipient.'
+                : activeFolder === 'inbox'
+                  ? 'New messages sent to your Flow address will appear here.'
+                  : 'Messages you send or move to this folder will appear here.'}
+            </p>
+            {hasQuery ? (
+              <Button
+                type="button"
+                variant="outline"
+                size="sm"
+                onClick={onSearchClear}
+              >
+                <SearchX className="size-4" />
+                Clear search
+              </Button>
+            ) : null}
+          </div>
         ) : (
-          messages.map(thread => (
-            <Button
-              type="button"
-              key={thread.id}
-              variant="ghost"
-              className={thread.unread ? 'gmail-row unread' : 'gmail-row'}
-              onClick={() => onOpenMessage(thread.id)}
-            >
-              <span className="gmail-checkbox" />
-              <Star
-                className={thread.starred ? 'size-5 star active' : 'size-5 star'}
-                fill={thread.starred ? 'currentColor' : 'none'}
-              />
-              <span className="gmail-sender">
-                {thread.direction === 'outbound'
-                  ? `To ${thread.to.join(', ')}`
-                  : thread.from}
-              </span>
-              <span className="gmail-subject">
-                <strong>{thread.subject || '(no subject)'}</strong>
-                <span>{thread.preview ? ` - ${thread.preview}` : ''}</span>
-              </span>
-              {thread.attachments ? <Paperclip className="size-4" /> : <span />}
-              <time>{formatInboxTime(thread.sentAt || thread.receivedAt)}</time>
-            </Button>
-          ))
+          messages.map((thread, index) => {
+            const participant = getParticipant(thread);
+
+            return (
+              <Button
+                type="button"
+                key={thread.id}
+                variant="ghost"
+                style={{ animationDelay: `${Math.min(index * 24, 180)}ms` }}
+                className={
+                  thread.unread
+                    ? `${styles.row} ${styles.unreadRow}`
+                    : styles.row
+                }
+                onClick={() => onOpenMessage(thread.id)}
+              >
+                <span className={styles.avatar} aria-hidden="true">
+                  {getInitial(participant)}
+                </span>
+                <span className={styles.messageMain}>
+                  <span className={styles.rowTop}>
+                    <strong>{participant}</strong>
+                    {thread.unread ? (
+                      <Badge className={styles.unreadBadge}>New</Badge>
+                    ) : null}
+                  </span>
+                  <span className={styles.subjectLine}>
+                    <strong>{thread.subject || '(no subject)'}</strong>
+                    {thread.preview ? <span>{thread.preview}</span> : null}
+                  </span>
+                </span>
+                <span className={styles.rowMeta}>
+                  <span className={styles.metaIcons}>
+                    {thread.starred ? (
+                      <Star className={styles.starred} fill="currentColor" />
+                    ) : (
+                      <Star className={styles.star} />
+                    )}
+                    {thread.attachments ? (
+                      <Paperclip className={styles.attachment} />
+                    ) : null}
+                  </span>
+                  <time>{formatInboxTime(thread.sentAt || thread.receivedAt)}</time>
+                </span>
+              </Button>
+            );
+          })
         )}
       </div>
     </section>

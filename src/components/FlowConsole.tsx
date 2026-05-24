@@ -308,7 +308,6 @@ export default function FlowConsole({ authUser, onSignOut }: FlowConsoleProps) {
         }}
         density={density}
         isRefreshing={isLoadingMessages}
-        onCompose={() => setComposeOpen(true)}
         onQueryChange={setSearchQuery}
         onRefresh={refreshMessages}
         onSignOut={onSignOut}
@@ -330,7 +329,6 @@ export default function FlowConsole({ authUser, onSignOut }: FlowConsoleProps) {
         {sidebarOpen ? (
           <FlowSidebar
             activeFolder={activeFolder}
-            config={config}
             messageCounts={messageCounts}
             onCompose={() => setComposeOpen(true)}
             onSelectFolder={selectFolder}

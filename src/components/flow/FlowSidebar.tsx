@@ -1,12 +1,11 @@
-import { Plus } from 'lucide-react';
+import { PenLine } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { folderDefinitions } from './constants';
-import { ConnectionRow } from './shared';
-import type { FlowConfig, FolderName } from './types';
+import styles from './FlowSidebar.module.css';
+import type { FolderName } from './types';
 
 type FlowSidebarProps = {
   activeFolder: FolderName;
-  config: FlowConfig;
   messageCounts: Partial<Record<FolderName, number>>;
   onCompose: () => void;
   onSelectFolder: (folder: FolderName) => void;
@@ -14,16 +13,17 @@ type FlowSidebarProps = {
 
 export function FlowSidebar({
   activeFolder,
-  config,
   messageCounts,
   onCompose,
   onSelectFolder,
 }: FlowSidebarProps) {
   return (
     <aside className="gmail-sidebar">
-      <Button type="button" className="gmail-compose" onClick={onCompose}>
-        <Plus className="size-5" />
-        Compose
+      <Button type="button" className={styles.composeButton} onClick={onCompose}>
+        <span className={styles.composeIcon} aria-hidden="true">
+          <PenLine className="size-4" />
+        </span>
+        <span className={styles.composeText}>Compose</span>
       </Button>
 
       <nav className="gmail-folders" aria-label="Mail folders">
@@ -43,17 +43,6 @@ export function FlowSidebar({
           </Button>
         ))}
       </nav>
-
-      <div className="gmail-connection">
-        <ConnectionRow
-          connected={config.resendConfigured}
-          label={config.resendConfigured ? 'Sending connected' : 'Sending pending'}
-        />
-        <ConnectionRow
-          connected={Boolean(config.inboundConfigured)}
-          label={config.inboundConfigured ? 'Receiving verified' : 'Receiving pending'}
-        />
-      </div>
     </aside>
   );
 }

@@ -3,7 +3,6 @@
 import {
   ChevronsLeft,
   ChevronsRight,
-  Edit3,
   Laptop,
   LogOut,
   Moon,
@@ -13,6 +12,7 @@ import {
   Search,
   SlidersHorizontal,
   Sun,
+  X,
 } from 'lucide-react';
 import { useTheme } from 'next-themes';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
@@ -33,6 +33,7 @@ import {
   TooltipContent,
   TooltipTrigger,
 } from '@/components/ui/tooltip';
+import styles from './FlowTopbar.module.css';
 
 type FlowTopbarProps = {
   authUser: {
@@ -42,7 +43,6 @@ type FlowTopbarProps = {
   };
   density: 'comfortable' | 'compact';
   isRefreshing: boolean;
-  onCompose: () => void;
   onQueryChange: (value: string) => void;
   onRefresh: () => void;
   onSignOut: () => Promise<void>;
@@ -58,7 +58,6 @@ export function FlowTopbar({
   authUser,
   density,
   isRefreshing,
-  onCompose,
   onQueryChange,
   onRefresh,
   onSignOut,
@@ -82,8 +81,8 @@ export function FlowTopbar({
       .toUpperCase() || 'F';
 
   return (
-    <header className="gmail-topbar">
-      <div className="gmail-brand">
+    <header className={styles.topbar} aria-label="Flow Mail header">
+      <section className={styles.identity} aria-label="Workspace">
         <Tooltip>
           <TooltipTrigger
             render={
@@ -91,6 +90,7 @@ export function FlowTopbar({
                 type="button"
                 variant="ghost"
                 size="icon"
+                className={styles.iconButton}
                 aria-label={sidebarOpen ? 'Collapse sidebar' : 'Open sidebar'}
                 onClick={onToggleSidebar}
               />
@@ -106,22 +106,70 @@ export function FlowTopbar({
             {sidebarOpen ? 'Collapse sidebar' : 'Open sidebar'}
           </TooltipContent>
         </Tooltip>
-        <div className="brand-mark">F</div>
-        <div>
-          <span>{valueLabel}</span>
-          <h1>Flow Mail</h1>
-        </div>
-      </div>
 
-      <div className="gmail-search" role="search">
-        <Search className="size-5" />
-        <Input
-          value={query}
-          onChange={event => onQueryChange(event.currentTarget.value)}
-          placeholder="Search sender, subject, preview, or recipient"
-          aria-label="Search mail"
-          className="flow-search-input"
-        />
+        <div className={styles.productLockup}>
+          <div className={styles.brandMark} aria-hidden="true">
+            <span>F</span>
+          </div>
+          <div className={styles.brandCopy}>
+            <h1>Flow</h1>
+          </div>
+        </div>
+      </section>
+
+      <section className={styles.commandCenter} aria-label="Mail tools">
+        <div className={styles.search} role="search">
+          <Search className="size-5" />
+          <Input
+            value={query}
+            onChange={event => onQueryChange(event.currentTarget.value)}
+            placeholder="Search mail, recipients, senders"
+            aria-label="Search mail"
+            className={styles.searchInput}
+          />
+          {query ? (
+            <Tooltip>
+              <TooltipTrigger
+                render={
+                  <Button
+                    type="button"
+                    variant="ghost"
+                    size="icon"
+                    className={styles.searchOptions}
+                    aria-label="Clear search"
+                    onClick={() => onQueryChange('')}
+                  />
+                }
+              >
+                <X className="size-4" />
+              </TooltipTrigger>
+              <TooltipContent>Clear search</TooltipContent>
+            </Tooltip>
+          ) : null}
+        </div>
+      </section>
+
+      <section className={styles.topActions} aria-label="Header actions">
+
+        <Tooltip>
+          <TooltipTrigger
+            render={
+              <Button
+                type="button"
+                variant="ghost"
+                size="icon"
+                aria-label="Refresh mail"
+                onClick={onRefresh}
+                disabled={isRefreshing}
+                className={styles.iconButton}
+              />
+            }
+          >
+            <RefreshCcw className={isRefreshing ? 'size-5 spin' : 'size-5'} />
+          </TooltipTrigger>
+          <TooltipContent>Refresh mail</TooltipContent>
+        </Tooltip>
+
         <DropdownMenu>
           <DropdownMenuTrigger
             render={
@@ -129,13 +177,21 @@ export function FlowTopbar({
                 type="button"
                 variant="ghost"
                 size="icon"
+                className={styles.iconButton}
                 aria-label="Display options"
               />
             }
           >
             <SlidersHorizontal className="size-5" />
           </DropdownMenuTrigger>
-          <DropdownMenuContent align="end" className="flow-topbar-menu">
+          <DropdownMenuContent align="end" className={styles.topbarMenu}>
+            <DropdownMenuGroup>
+              <DropdownMenuLabel className={styles.menuSummary}>
+                <span>{valueLabel}</span>
+                <small>{unreadCount} unread messages</small>
+              </DropdownMenuLabel>
+            </DropdownMenuGroup>
+            <DropdownMenuSeparator />
             <DropdownMenuGroup>
               <DropdownMenuLabel>Display</DropdownMenuLabel>
               <DropdownMenuItem onClick={onToggleDensity}>
@@ -173,46 +229,7 @@ export function FlowTopbar({
             </DropdownMenuGroup>
           </DropdownMenuContent>
         </DropdownMenu>
-      </div>
 
-      <div className="gmail-top-actions">
-        <Tooltip>
-          <TooltipTrigger
-            render={
-              <Button
-                type="button"
-                variant="ghost"
-                size="icon"
-                aria-label="Compose email"
-                onClick={onCompose}
-              />
-            }
-          >
-            <Edit3 className="size-5" />
-          </TooltipTrigger>
-          <TooltipContent>Compose email</TooltipContent>
-        </Tooltip>
-        <Tooltip>
-          <TooltipTrigger
-            render={
-              <Button
-                type="button"
-                variant="ghost"
-                size="icon"
-                aria-label="Refresh mail"
-                onClick={onRefresh}
-                disabled={isRefreshing}
-              />
-            }
-          >
-            <RefreshCcw className={isRefreshing ? 'size-5 spin' : 'size-5'} />
-          </TooltipTrigger>
-          <TooltipContent>Refresh mail</TooltipContent>
-        </Tooltip>
-        <div className="flow-live-stat">
-          <strong>{unreadCount}</strong>
-          <span>unread</span>
-        </div>
         <DropdownMenu>
           <DropdownMenuTrigger
             render={
@@ -220,7 +237,7 @@ export function FlowTopbar({
                 type="button"
                 variant="ghost"
                 size="icon"
-                className="flow-account-trigger"
+                className={styles.accountTrigger}
                 aria-label="Account menu"
               />
             }
@@ -230,7 +247,7 @@ export function FlowTopbar({
               <AvatarFallback>{userInitial}</AvatarFallback>
             </Avatar>
           </DropdownMenuTrigger>
-          <DropdownMenuContent align="end" className="flow-account-menu">
+          <DropdownMenuContent align="end" className={styles.accountMenu}>
             <DropdownMenuGroup>
               <DropdownMenuLabel>
                 <span>{userLabel}</span>
@@ -244,7 +261,7 @@ export function FlowTopbar({
             </DropdownMenuGroup>
           </DropdownMenuContent>
         </DropdownMenu>
-      </div>
+      </section>
     </header>
   );
 }

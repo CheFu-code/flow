@@ -1,0 +1,26 @@
+.dark {
+  --auth-gate-shell-bg: #0d1117;
+  --auth-gate-card-bg: #111827;
+  --auth-gate-card-border: #273445;
+  --auth-gate-mark-bg: #f8fafc;
+  --auth-gate-mark-color: #0f172a;
+  --auth-gate-title: #f8fafc;
+  --auth-gate-copy: #9aa8ba;
+  --inbox-panel-bg: #111827;
+  --inbox-panel-border: #273445;
+  --inbox-panel-shadow: 0 18px 48px rgba(0, 0, 0, 0.25);
+  --inbox-divider: #273445;
+  --inbox-row-divider: #273445;
+  --inbox-row-bg: #111827;
+  --inbox-row-hover: #172033;
+  --inbox-row-unread: #172033;
+  --inbox-title: #f8fafc;
+  --inbox-subtitle: #9aa8ba;
+  --inbox-subject: #f8fafc;
+  --inbox-icon-bg: #172033;
+  --inbox-icon-color: #7dd3fc;
+  --inbox-avatar-bg: #172033;
+  --inbox-avatar-color: #7dd3fc;
+  --inbox-unread-avatar-bg: #1e3a5f;
+  --inbox-unread-avatar-color: #93c5fd;
+}

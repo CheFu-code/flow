@@ -1,0 +1,261 @@
+.topbar {
+  position: sticky;
+  top: 0;
+  z-index: 20;
+  display: grid;
+  min-width: 0;
+  grid-template-columns: minmax(190px, 260px) minmax(240px, 1fr) auto;
+  align-items: center;
+  gap: 14px;
+  border-bottom: 1px solid #273445;
+  background: rgba(13, 17, 23, 0.96);
+  padding: 10px 16px;
+  backdrop-filter: blur(12px);
+}
+
+.identity,
+.productLockup,
+.topActions {
+  display: flex;
+  min-width: 0;
+  align-items: center;
+}
+
+.identity {
+  gap: 8px;
+}
+
+.productLockup {
+  gap: 10px;
+}
+
+.brandMark {
+  display: grid;
+  width: 34px;
+  height: 34px;
+  flex: 0 0 auto;
+  place-items: center;
+  border-radius: 8px;
+  background: #f8fafc;
+  color: #0f172a;
+}
+
+.brandMark span {
+  font-size: 15px;
+  font-weight: 800;
+}
+
+.brandCopy {
+  min-width: 0;
+}
+
+.brandCopy h1 {
+  margin: 0;
+  overflow: hidden;
+  color: #f8fafc;
+  font-size: 18px;
+  font-weight: 720;
+  line-height: 1.1;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.commandCenter {
+  min-width: 0;
+}
+
+.search {
+  display: flex;
+  min-width: 0;
+  max-width: 680px;
+  height: 40px;
+  align-items: center;
+  gap: 9px;
+  border: 1px solid #273445;
+  border-radius: 8px;
+  background: #111827;
+  padding: 0 7px 0 12px;
+  color: #9aa8ba;
+  transition:
+    border-color 160ms ease,
+    box-shadow 160ms ease;
+}
+
+.search:focus-within {
+  border-color: #38bdf8;
+  box-shadow: 0 0 0 3px rgba(56, 189, 248, 0.11);
+}
+
+.searchInput[data-slot="input"] {
+  height: 100%;
+  min-width: 0;
+  flex: 1;
+  border: 0;
+  background: transparent;
+  padding: 0;
+  color: #f8fafc;
+  font-size: 14px;
+  box-shadow: none;
+}
+
+.searchInput[data-slot="input"]:focus-visible {
+  border: 0;
+  box-shadow: none;
+}
+
+.searchInput[data-slot="input"]::placeholder {
+  color: #718096;
+}
+
+.topActions {
+  justify-content: end;
+  gap: 7px;
+}
+
+.iconButton[data-slot="button"],
+.searchOptions[data-slot="button"] {
+  width: 36px;
+  height: 36px;
+  border-radius: 8px;
+  color: #dbe7f5;
+}
+
+.iconButton[data-slot="button"]:hover,
+.searchOptions[data-slot="button"]:hover {
+  background: #172033;
+  color: #ffffff;
+}
+
+.searchOptions[data-slot="button"] {
+  width: 30px;
+  height: 30px;
+}
+
+.composeAction[data-slot="button"] {
+  height: 36px;
+  border-radius: 8px;
+  background: #f8fafc;
+  padding-inline: 13px;
+  color: #0f172a;
+  font-weight: 720;
+}
+
+.composeAction[data-slot="button"]:hover {
+  background: #e2e8f0;
+}
+
+.composeIcon {
+  display: none;
+}
+
+.topbarMenu {
+  width: 236px;
+}
+
+.topbarMenu [data-slot="dropdown-menu-item"] {
+  min-height: 34px;
+  gap: 9px;
+}
+
+.menuSummary {
+  display: grid;
+  gap: 2px;
+}
+
+.menuSummary span,
+.menuSummary small {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.menuSummary small {
+  color: var(--muted-foreground);
+  font-size: 12px;
+  font-weight: 500;
+}
+
+.accountTrigger[data-slot="button"] {
+  width: 36px;
+  height: 36px;
+  border-radius: 999px;
+  padding: 0;
+}
+
+.accountTrigger[data-slot="button"]:hover {
+  background: #172033;
+}
+
+.accountMenu {
+  width: 240px;
+}
+
+.accountMenu [data-slot="dropdown-menu-label"] {
+  display: grid;
+  gap: 2px;
+}
+
+.accountMenu [data-slot="dropdown-menu-label"] span,
+.accountMenu [data-slot="dropdown-menu-label"] small {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.accountMenu [data-slot="dropdown-menu-label"] small {
+  color: var(--muted-foreground);
+  font-size: 12px;
+  font-weight: 500;
+}
+
+@media (max-width: 920px) {
+  .topbar {
+    grid-template-columns: minmax(170px, 220px) minmax(200px, 1fr) auto;
+    gap: 10px;
+    padding-inline: 12px;
+  }
+}
+
+@media (max-width: 760px) {
+  .topbar {
+    grid-template-columns: minmax(0, 1fr) auto;
+    padding: 10px 12px 12px;
+  }
+
+  .commandCenter {
+    grid-column: 1 / -1;
+    grid-row: 2;
+  }
+
+  .search {
+    max-width: none;
+  }
+
+  .composeAction {
+    display: none;
+  }
+
+  .composeIcon {
+    display: inline-flex;
+  }
+}
+
+@media (max-width: 460px) {
+  .brandMark {
+    width: 32px;
+    height: 32px;
+  }
+
+  .brandCopy h1 {
+    font-size: 17px;
+  }
+
+  .iconButton[data-slot="button"],
+  .accountTrigger[data-slot="button"] {
+    width: 34px;
+    height: 34px;
+  }
+}
+
