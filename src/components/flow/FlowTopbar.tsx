@@ -12,6 +12,7 @@ import {
   Search,
   SlidersHorizontal,
   Sun,
+  UserRound,
   X,
 } from 'lucide-react';
 import { useTheme } from 'next-themes';
@@ -33,6 +34,7 @@ import {
   TooltipContent,
   TooltipTrigger,
 } from '@/components/ui/tooltip';
+import { chefuManageAccountUrl } from '@/lib/chefu-account';
 import styles from './FlowTopbar.module.css';
 
 type FlowTopbarProps = {
@@ -254,6 +256,10 @@ export function FlowTopbar({
                 {authUser.email ? <small>{authUser.email}</small> : null}
               </DropdownMenuLabel>
               <DropdownMenuSeparator />
+              <DropdownMenuItem render={<a href={chefuManageAccountUrl()} />}>
+                <UserRound className="size-4" />
+                Manage account
+              </DropdownMenuItem>
               <DropdownMenuItem onClick={() => void onSignOut()}>
                 <LogOut className="size-4" />
                 Sign out

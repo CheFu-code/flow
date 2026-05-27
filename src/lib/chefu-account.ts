@@ -13,7 +13,10 @@ const CHEFU_ACCOUNT_URL =
 const FLOW_APP_URL =
   process.env.NEXT_PUBLIC_FLOW_APP_URL || 'https://flow.chefuinc.com';
 
-function accountUrl(path: '/login' | '/register' | '/logout', returnTo: string) {
+function accountUrl(
+  path: '/login' | '/register' | '/logout' | '/account',
+  returnTo: string,
+) {
   const url = new URL(path, CHEFU_ACCOUNT_URL);
   url.searchParams.set('app', 'flow');
   url.searchParams.set('returnTo', returnTo);
@@ -36,6 +39,10 @@ export function chefuRegisterUrl(returnTo = appReturnTo('/')) {
 
 export function chefuLogoutUrl(returnTo = appReturnTo('/')) {
   return accountUrl('/logout', returnTo);
+}
+
+export function chefuManageAccountUrl(returnTo = appReturnTo('/')) {
+  return accountUrl('/account', returnTo);
 }
 
 export async function getChefuSessionUser() {
