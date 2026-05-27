@@ -1,7 +1,5 @@
 'use client';
 
-import type { User } from 'firebase/auth';
-import { onAuthStateChanged, signOut } from 'firebase/auth';
 import { AlertCircle, Loader2, LogIn, ShieldCheck } from 'lucide-react';
 import { usePathname, useRouter } from 'next/navigation';
 import type { ReactNode } from 'react';
@@ -15,27 +13,33 @@ import {
   CardHeader,
   CardTitle,
 } from '@/components/ui/card';
-import { friendlyAuthError } from '@/components/auth/auth-errors';
-import { clearSessionCookie, syncSessionCookie } from '@/lib/client-session';
-import { getFirebaseAuth } from '@/lib/firebase';
+import {
+  appReturnTo,
+  chefuLoginUrl,
+  chefuLogoutUrl,
+  getChefuSessionUser,
+  type ChefuSessionUser,
+} from '@/lib/chefu-account';
+import { clearSessionCookie } from '@/lib/client-session';
 import styles from './AuthGate.module.css';
 
 type AuthGateProps = {
-  children: (props: { user: User; onSignOut: () => Promise<void> }) => ReactNode;
+  children: (props: {
+    user: ChefuSessionUser;
+    onSignOut: () => Promise<void>;
+  }) => ReactNode;
 };
 
 type GateState =
   | { status: 'checking'; user: null; message: string }
-  | { status: 'ready'; user: User; message: null }
+  | { status: 'ready'; user: ChefuSessionUser; message: null }
   | { status: 'error'; user: null; message: string };
 
 export function AuthGate({ children }: AuthGateProps) {
   const pathname = usePathname();
   const router = useRouter();
-  const loginUrl = useMemo(
-    () => `/login?next=${encodeURIComponent(pathname || '/')}`,
-    [pathname],
-  );
+  const returnTo = useMemo(() => appReturnTo(pathname || '/'), [pathname]);
+  const loginUrl = useMemo(() => chefuLoginUrl(returnTo), [returnTo]);
   const [gateState, setGateState] = useState<GateState>({
     message: 'Opening secure workspace...',
     status: 'checking',
@@ -44,75 +48,36 @@ export function AuthGate({ children }: AuthGateProps) {
 
   useEffect(() => {
     let active = true;
-    let currentAuth: ReturnType<typeof getFirebaseAuth>;
 
-    try {
-      currentAuth = getFirebaseAuth();
-    } catch (error) {
-      queueMicrotask(() => {
+    getChefuSessionUser()
+      .then(user => {
+        if (!active) return;
+        setGateState({ message: null, status: 'ready', user });
+      })
+      .catch(error => {
         if (!active) return;
         setGateState({
-          message: friendlyAuthError(error),
-          status: 'error',
+          message:
+            error instanceof Error ? error.message : 'Authentication required.',
+          status: 'checking',
           user: null,
         });
+        window.location.replace(loginUrl);
       });
-      return () => {
-        active = false;
-      };
-    }
-
-    const unsubscribe = onAuthStateChanged(currentAuth, nextUser => {
-      if (!nextUser) {
-        if (active) {
-          setGateState({
-            message: 'Redirecting to sign in...',
-            status: 'checking',
-            user: null,
-          });
-        }
-        router.replace(loginUrl);
-        return;
-      }
-
-      setGateState({
-        message: 'Verifying your session...',
-        status: 'checking',
-        user: null,
-      });
-
-      syncSessionCookie()
-        .then(() => {
-          if (!active) return;
-          setGateState({ message: null, status: 'ready', user: nextUser });
-        })
-        .catch(error => {
-          if (!active) return;
-          setGateState({
-            message: friendlyAuthError(error),
-            status: 'error',
-            user: null,
-          });
-        });
-    });
 
     return () => {
       active = false;
-      unsubscribe();
     };
-  }, [loginUrl, router]);
+  }, [loginUrl]);
 
   const handleSignOut = useCallback(async () => {
-    const currentAuth = getFirebaseAuth();
-    await Promise.allSettled([clearSessionCookie(), signOut(currentAuth)]);
-    router.replace('/login');
-    router.refresh();
-  }, [router]);
+    await clearSessionCookie();
+    window.location.assign(chefuLogoutUrl(appReturnTo('/login')));
+  }, []);
 
   const handleRetrySignIn = useCallback(async () => {
-    const currentAuth = getFirebaseAuth();
-    await Promise.allSettled([clearSessionCookie(), signOut(currentAuth)]);
-    router.replace(loginUrl);
+    await clearSessionCookie();
+    window.location.assign(loginUrl);
     router.refresh();
   }, [loginUrl, router]);
 

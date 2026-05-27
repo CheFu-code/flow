@@ -1,8 +1,8 @@
 'use client';
 
-import type { User } from 'firebase/auth';
 import { useEffect, useMemo, useState } from 'react';
 import { apiUrl, flowHeaders } from '@/lib/api';
+import type { ChefuSessionUser } from '@/lib/chefu-account';
 import type { FlowRecipient } from '@/lib/email-schema';
 import { renderEmailShell, textToHtml } from '@/lib/email-templates';
 import { ComposeSheet } from './flow/ComposeSheet';
@@ -20,7 +20,7 @@ import type {
 } from './flow/types';
 
 type FlowConsoleProps = {
-  authUser: User;
+  authUser: ChefuSessionUser;
   onSignOut: () => Promise<void>;
 };
 
@@ -324,9 +324,9 @@ export default function FlowConsole({ authUser, onSignOut }: FlowConsoleProps) {
     >
       <FlowTopbar
         authUser={{
-          displayName: authUser.displayName,
-          email: authUser.email,
-          photoURL: authUser.photoURL,
+          displayName: authUser.displayName || null,
+          email: authUser.email || null,
+          photoURL: authUser.photoURL || null,
         }}
         density={density}
         isRefreshing={isLoadingMessages}
