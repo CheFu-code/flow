@@ -1,10 +1,10 @@
 'use client';
 
+import { CheFuUserDropdown } from '@chefu/ui';
 import {
   ChevronsLeft,
   ChevronsRight,
   Laptop,
-  LogOut,
   Moon,
   PanelLeftClose,
   PanelLeftOpen,
@@ -12,11 +12,9 @@ import {
   Search,
   SlidersHorizontal,
   Sun,
-  UserRound,
   X,
 } from 'lucide-react';
 import { useTheme } from 'next-themes';
-import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { Button } from '@/components/ui/button';
 import {
   DropdownMenu,
@@ -72,15 +70,6 @@ export function FlowTopbar({
 }: FlowTopbarProps) {
   const { setTheme, theme } = useTheme();
   const isDark = theme === 'dark';
-  const userLabel = authUser.displayName || authUser.email || 'Flow user';
-  const userInitial =
-    userLabel
-      .split(/\s|@/)
-      .filter(Boolean)
-      .map(part => part[0])
-      .join('')
-      .slice(0, 2)
-      .toUpperCase() || 'F';
 
   return (
     <header className={styles.topbar} aria-label="Flow Mail header">
@@ -232,41 +221,13 @@ export function FlowTopbar({
           </DropdownMenuContent>
         </DropdownMenu>
 
-        <DropdownMenu>
-          <DropdownMenuTrigger
-            render={
-              <Button
-                type="button"
-                variant="ghost"
-                size="icon"
-                className={styles.accountTrigger}
-                aria-label="Account menu"
-              />
-            }
-          >
-            <Avatar className="size-8">
-              <AvatarImage src={authUser.photoURL || undefined} alt="" />
-              <AvatarFallback>{userInitial}</AvatarFallback>
-            </Avatar>
-          </DropdownMenuTrigger>
-          <DropdownMenuContent align="end" className={styles.accountMenu}>
-            <DropdownMenuGroup>
-              <DropdownMenuLabel>
-                <span>{userLabel}</span>
-                {authUser.email ? <small>{authUser.email}</small> : null}
-              </DropdownMenuLabel>
-              <DropdownMenuSeparator />
-              <DropdownMenuItem render={<a href={chefuManageAccountUrl()} />}>
-                <UserRound className="size-4" />
-                Manage account
-              </DropdownMenuItem>
-              <DropdownMenuItem onClick={() => void onSignOut()}>
-                <LogOut className="size-4" />
-                Sign out
-              </DropdownMenuItem>
-            </DropdownMenuGroup>
-          </DropdownMenuContent>
-        </DropdownMenu>
+        <CheFuUserDropdown
+          accountHref={chefuManageAccountUrl()}
+          onSignOut={onSignOut}
+          triggerClassName={styles.accountTrigger}
+          user={authUser}
+          variant="neutral"
+        />
       </section>
     </header>
   );
