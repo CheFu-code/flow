@@ -9,7 +9,7 @@ export type ChefuSessionUser = {
 };
 
 const CHEFU_ACCOUNT_URL =
-  process.env.NEXT_PUBLIC_CHEFU_ACCOUNT_URL || 'https://chefuinc.com';
+  process.env.NEXT_PUBLIC_CHEFU_ACCOUNT_URL || 'https://myaccount.chefuinc.com';
 const FLOW_APP_URL =
   process.env.NEXT_PUBLIC_FLOW_APP_URL || 'https://flow.chefuinc.com';
 
