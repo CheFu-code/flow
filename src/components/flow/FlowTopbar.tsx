@@ -1,6 +1,6 @@
 'use client';
 
-import { CheFuUserDropdown } from '@chefu/ui';
+import { CheFuUserDropdown } from 'chefu-ui';
 import {
   ChevronsLeft,
   ChevronsRight,
