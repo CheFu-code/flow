@@ -12,6 +12,7 @@ import Link from 'next/link';
 import { useRouter, useSearchParams } from 'next/navigation';
 import type { FormEvent } from 'react';
 import { useMemo, useState } from 'react';
+import { apiUrl } from '@/lib/api';
 import styles from './RegisterKeyClient.module.css';
 
 type RegisterResponse = {
@@ -55,7 +56,7 @@ export function RegisterKeyClient() {
     setIsSubmitting(true);
 
     try {
-      const response = await fetch('/api/flow-access/register', {
+      const response = await fetch(apiUrl('/flow/access/register'), {
         body: JSON.stringify({
           accessKey,
           label: employeeLabel,

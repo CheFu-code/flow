@@ -5,6 +5,7 @@ import Link from 'next/link';
 import { useRouter, useSearchParams } from 'next/navigation';
 import type { FormEvent } from 'react';
 import { useEffect, useMemo, useState } from 'react';
+import { apiUrl } from '@/lib/api';
 import styles from './LoginClient.module.css';
 
 type FlowAccessResponse = {
@@ -29,7 +30,7 @@ export function LoginClient() {
   useEffect(() => {
     let active = true;
 
-    fetch('/api/flow-access', {
+    fetch(apiUrl('/flow/access/session'), {
       cache: 'no-store',
       credentials: 'include',
     })
@@ -59,7 +60,7 @@ export function LoginClient() {
     setIsSubmitting(true);
 
     try {
-      const response = await fetch('/api/flow-access', {
+      const response = await fetch(apiUrl('/flow/access/login'), {
         body: JSON.stringify({ code: accessKey }),
         credentials: 'include',
         headers: { 'Content-Type': 'application/json' },

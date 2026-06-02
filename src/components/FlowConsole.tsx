@@ -3,9 +3,12 @@
 import {
   ArrowLeft,
   CircleHelp,
+  Clock3,
   FileText,
   Grid3X3,
   Inbox,
+  KeyRound,
+  LogOut,
   Mail,
   Menu,
   Pencil,
@@ -19,23 +22,33 @@ import {
   X,
 } from 'lucide-react';
 import type { ChangeEvent, FormEvent, KeyboardEvent, MouseEvent } from 'react';
-import { useMemo, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
+import { apiUrl, flowHeaders } from '@/lib/api';
 import styles from './FlowConsole.module.css';
 
 type MailFolder = 'inbox' | 'starred' | 'sent' | 'drafts' | 'bin' | 'allmail';
 
-type StoredFolder = Exclude<MailFolder, 'starred' | 'allmail'>;
+type MessageFolder =
+  | MailFolder
+  | 'archived'
+  | 'campaigns'
+  | 'scheduled'
+  | 'trash';
 
 type MailMessage = {
+  attachments: number;
   body: string;
   date: string;
-  folder: StoredFolder;
+  direction: 'inbound' | 'outbound';
+  folder: MessageFolder;
   from: string;
+  html?: string;
   id: string;
   name: string;
+  preview: string;
   starred: boolean;
   subject: string;
-  to: string;
+  to: string[];
   unread: boolean;
 };
 
@@ -48,6 +61,49 @@ type ComposeFields = {
 type StatusMessage = {
   kind: 'info' | 'success';
   text: string;
+};
+
+type AccessSession = {
+  expiresAt: string;
+  keyLabel: string;
+};
+
+type FlowConfig = {
+  defaultFrom: string;
+  defaultReplyTo: string;
+  inboundAddress?: string;
+  inboundConfigured?: boolean;
+  maxRecipients: number;
+  resendConfigured: boolean;
+  senders?: Array<{ email: string; label: string }>;
+};
+
+type BackendMessage = {
+  attachments?: number;
+  createdAt?: string;
+  direction: 'inbound' | 'outbound';
+  folder: string;
+  from: string;
+  html?: string;
+  id: string;
+  preview?: string;
+  receivedAt?: string;
+  sentAt?: string;
+  starred?: boolean;
+  subject?: string;
+  text?: string;
+  to?: string[];
+  unread?: boolean;
+};
+
+type BackendMessagesResponse = {
+  counts?: Partial<Record<string, number>>;
+  messages?: BackendMessage[];
+};
+
+type FlowConsoleProps = {
+  accessSession: AccessSession;
+  onLock: () => Promise<void>;
 };
 
 const folderItems: Array<{
@@ -92,73 +148,24 @@ const emptyStates: Record<MailFolder, { heading: string; subHeading: string }> =
   },
 };
 
-const initialMessages: MailMessage[] = [
-  {
-    body:
-      'Hi team,\n\nThe first Flow interface draft is ready for review. Please check the inbox, compose window, and folder navigation before we connect the sender backend.',
-    date: '2026-06-02T10:30:00+02:00',
-    folder: 'inbox',
-    from: 'design@chefuinc.com',
-    id: 'flow-001',
-    name: 'Design Team',
-    starred: true,
-    subject: 'Flow UI review',
-    to: 'flow@chefuinc.com',
-    unread: true,
-  },
-  {
-    body:
-      'The campaign copy has been trimmed and is ready to drop into a test message. We can wire the actual delivery endpoint after the UI feels right.',
-    date: '2026-06-01T16:15:00+02:00',
-    folder: 'inbox',
-    from: 'marketing@chefuinc.com',
-    id: 'flow-002',
-    name: 'Marketing',
-    starred: false,
-    subject: 'June campaign copy',
-    to: 'flow@chefuinc.com',
-    unread: false,
-  },
-  {
-    body:
-      'Thanks for the quick turn-around. I moved the contact list cleanup to tomorrow so the UI can land first.',
-    date: '2026-05-31T12:45:00+02:00',
-    folder: 'sent',
-    from: 'flow@chefuinc.com',
-    id: 'flow-003',
-    name: 'Flow Mail',
-    starred: false,
-    subject: 'Re: Recipient cleanup',
-    to: 'ops@chefuinc.com',
-    unread: false,
-  },
-  {
-    body:
-      'Hi,\n\nI wanted to share a short product update with the CheFu audience. The final link and CTA still need polish.',
-    date: '2026-05-30T09:10:00+02:00',
-    folder: 'drafts',
-    from: 'flow@chefuinc.com',
-    id: 'flow-004',
-    name: 'Draft',
-    starred: false,
-    subject: 'Product update draft',
-    to: 'subscribers@chefuinc.com',
-    unread: false,
-  },
-  {
-    body:
-      'This older test message is parked in the bin while we reset the sender interface.',
-    date: '2026-05-28T14:20:00+02:00',
-    folder: 'bin',
-    from: 'qa@chefuinc.com',
-    id: 'flow-005',
-    name: 'QA',
-    starred: false,
-    subject: 'Old test message',
-    to: 'flow@chefuinc.com',
-    unread: false,
-  },
-];
+const emptyFolderCounts: Record<MailFolder, number> = {
+  allmail: 0,
+  bin: 0,
+  drafts: 0,
+  inbox: 0,
+  sent: 0,
+  starred: 0,
+};
+
+const defaultConfig: FlowConfig = {
+  defaultFrom: 'Flow Mail <mail@flow.chefuinc.com>',
+  defaultReplyTo: '',
+  inboundAddress: '',
+  inboundConfigured: false,
+  maxRecipients: 100,
+  resendConfigured: false,
+  senders: [],
+};
 
 const initialCompose: ComposeFields = {
   body: '',
@@ -181,31 +188,129 @@ function formatMessageDate(value: string) {
   }).format(new Date(value));
 }
 
+function formatSessionExpiry(value: string) {
+  return new Intl.DateTimeFormat('en', {
+    day: 'numeric',
+    hour: '2-digit',
+    minute: '2-digit',
+    month: 'short',
+  }).format(new Date(value));
+}
+
 function getFolderLabel(folder: MailFolder) {
   return folderItems.find(item => item.folder === folder)?.title || 'Inbox';
 }
 
-function isMessageInFolder(message: MailMessage, folder: MailFolder) {
-  if (folder === 'starred') return message.starred;
-  if (folder === 'allmail') return message.folder !== 'bin';
-  return message.folder === folder;
+function getMessageFolderLabel(folder: MessageFolder) {
+  if (folder === 'trash') return 'Bin';
+  if (folder === 'archived') return 'Archived';
+  if (folder === 'campaigns') return 'Campaigns';
+  if (folder === 'scheduled') return 'Scheduled';
+  return getFolderLabel(folder);
 }
 
-function makeMessageId() {
-  if (typeof crypto !== 'undefined' && 'randomUUID' in crypto) {
-    return crypto.randomUUID();
+function getInitial(value: string) {
+  return value.trim().charAt(0).toUpperCase() || 'F';
+}
+
+function backendFolderFor(folder: MailFolder) {
+  if (folder === 'bin') return 'trash';
+  return folder;
+}
+
+function uiFolderFor(folder: string): MessageFolder {
+  if (folder === 'trash') return 'bin';
+  if (
+    ['inbox', 'sent', 'drafts', 'starred', 'allmail'].includes(folder)
+  ) {
+    return folder as MailFolder;
+  }
+  if (['archived', 'campaigns', 'scheduled'].includes(folder)) {
+    return folder as MessageFolder;
+  }
+  return 'inbox';
+}
+
+function participantName(message: BackendMessage) {
+  if (message.direction === 'outbound') return 'Flow Mail';
+  const address = message.from || '';
+  const match = address.match(/^(.+?)\s*<(.+?)>$/);
+  if (match?.[1]) return match[1].replace(/^"|"$/g, '').trim();
+  return address.split('@')[0] || 'Sender';
+}
+
+function toMailMessage(message: BackendMessage): MailMessage {
+  return {
+    attachments: Number(message.attachments) || 0,
+    body: message.text || message.preview || '',
+    date:
+      message.sentAt ||
+      message.receivedAt ||
+      message.createdAt ||
+      new Date().toISOString(),
+    direction: message.direction === 'outbound' ? 'outbound' : 'inbound',
+    folder: uiFolderFor(message.folder),
+    from: message.from || '',
+    html: message.html,
+    id: message.id,
+    name: participantName(message),
+    preview: message.preview || message.text || '',
+    starred: Boolean(message.starred),
+    subject: message.subject || '(no subject)',
+    to: Array.isArray(message.to) ? message.to : [],
+    unread: Boolean(message.unread),
+  };
+}
+
+function mapCounts(counts?: Partial<Record<string, number>>) {
+  return {
+    allmail: Number(counts?.allmail) || 0,
+    bin: Number(counts?.trash || counts?.bin) || 0,
+    drafts: Number(counts?.drafts) || 0,
+    inbox: Number(counts?.inbox) || 0,
+    sent: Number(counts?.sent) || 0,
+    starred: Number(counts?.starred) || 0,
+  };
+}
+
+function parseRecipients(value: string) {
+  return [...new Set(
+    value
+      .split(/[,\s;]+/)
+      .map(item => item.trim())
+      .filter(item => /^\S+@\S+\.\S+$/.test(item)),
+  )];
+}
+
+async function responseJson<T>(response: Response): Promise<T> {
+  const data = (await response.json().catch(() => ({}))) as T & {
+    error?: string;
+    message?: string;
+  };
+
+  if (!response.ok) {
+    throw new Error(data.error || data.message || 'Flow request failed.');
   }
 
-  return `flow-${Date.now()}`;
+  return data;
 }
 
-export default function FlowConsole() {
+export default function FlowConsole({
+  accessSession,
+  onLock,
+}: FlowConsoleProps) {
+  const [accountOpen, setAccountOpen] = useState(false);
   const [activeFolder, setActiveFolder] = useState<MailFolder>('inbox');
   const [composeFields, setComposeFields] =
     useState<ComposeFields>(initialCompose);
   const [composeOpen, setComposeOpen] = useState(false);
-  const [messages, setMessages] = useState<MailMessage[]>(initialMessages);
+  const [config, setConfig] = useState<FlowConfig>(defaultConfig);
+  const [folderCounts, setFolderCounts] =
+    useState<Record<MailFolder, number>>(emptyFolderCounts);
+  const [isLoadingMessages, setIsLoadingMessages] = useState(true);
+  const [messages, setMessages] = useState<MailMessage[]>([]);
   const [query, setQuery] = useState('');
+  const [refreshSeq, setRefreshSeq] = useState(0);
   const [selectedIds, setSelectedIds] = useState<string[]>([]);
   const [selectedMessageId, setSelectedMessageId] = useState<string | null>(
     null,
@@ -213,39 +318,25 @@ export default function FlowConsole() {
   const [sidebarOpen, setSidebarOpen] = useState(true);
   const [status, setStatus] = useState<StatusMessage | null>(null);
 
-  const folderCounts = useMemo(
-    () =>
-      folderItems.reduce(
-        (counts, item) => ({
-          ...counts,
-          [item.folder]: messages.filter(message =>
-            isMessageInFolder(message, item.folder),
-          ).length,
-        }),
-        {} as Record<MailFolder, number>,
-      ),
-    [messages],
-  );
-
   const visibleMessages = useMemo(() => {
     const cleanQuery = query.trim().toLowerCase();
 
     return messages.filter(message => {
-      if (!isMessageInFolder(message, activeFolder)) return false;
       if (!cleanQuery) return true;
 
       return [
         message.body,
         message.from,
         message.name,
+        message.preview,
         message.subject,
-        message.to,
+        message.to.join(' '),
       ]
         .join(' ')
         .toLowerCase()
         .includes(cleanQuery);
     });
-  }, [activeFolder, messages, query]);
+  }, [messages, query]);
 
   const selectedMessage = useMemo(
     () => messages.find(message => message.id === selectedMessageId) || null,
@@ -258,22 +349,107 @@ export default function FlowConsole() {
 
   const selectedFolderTitle = getFolderLabel(activeFolder);
   const activeEmptyState = emptyStates[activeFolder];
+  const accountInitial = getInitial(accessSession.keyLabel);
+  const sessionExpiry = formatSessionExpiry(accessSession.expiresAt);
+
+  useEffect(() => {
+    let active = true;
+
+    fetch(apiUrl('/flow/config'), {
+      credentials: 'include',
+      headers: flowHeaders(),
+    })
+      .then(response => responseJson<FlowConfig>(response))
+      .then(nextConfig => {
+        if (active) setConfig({ ...defaultConfig, ...nextConfig });
+      })
+      .catch(error => {
+        if (!active) return;
+        setStatus({
+          kind: 'info',
+          text:
+            error instanceof Error
+              ? error.message
+              : 'Flow config could not be loaded.',
+        });
+      });
+
+    return () => {
+      active = false;
+    };
+  }, []);
+
+  useEffect(() => {
+    let active = true;
+
+    fetch(apiUrl(`/flow/messages?folder=${backendFolderFor(activeFolder)}`), {
+      credentials: 'include',
+      headers: flowHeaders(),
+    })
+      .then(response => responseJson<BackendMessagesResponse>(response))
+      .then(data => {
+        if (!active) return;
+        setMessages((data.messages || []).map(toMailMessage));
+        setFolderCounts(mapCounts(data.counts));
+      })
+      .catch(error => {
+        if (!active) return;
+        setMessages([]);
+        setStatus({
+          kind: 'info',
+          text:
+            error instanceof Error
+              ? error.message
+              : 'Messages could not be loaded.',
+        });
+      })
+      .finally(() => {
+        if (active) setIsLoadingMessages(false);
+      });
+
+    return () => {
+      active = false;
+    };
+  }, [activeFolder, refreshSeq]);
 
   const changeFolder = (folder: MailFolder) => {
+    setIsLoadingMessages(true);
     setActiveFolder(folder);
     setSelectedIds([]);
     setSelectedMessageId(null);
     setStatus(null);
   };
 
+  const refreshMessages = () => {
+    setIsLoadingMessages(true);
+    setRefreshSeq(value => value + 1);
+  };
+
   const openMessage = (messageId: string) => {
+    const message = messages.find(item => item.id === messageId);
+
     setSelectedMessageId(messageId);
     setSelectedIds([]);
+
+    if (!message?.unread) return;
+
     setMessages(current =>
-      current.map(message =>
-        message.id === messageId ? { ...message, unread: false } : message,
+      current.map(item =>
+        item.id === messageId ? { ...item, unread: false } : item,
       ),
     );
+
+    fetch(apiUrl(`/flow/messages/${messageId}/read`), {
+      credentials: 'include',
+      headers: flowHeaders(),
+      method: 'POST',
+    }).catch(() => {
+      setMessages(current =>
+        current.map(item =>
+          item.id === messageId ? { ...item, unread: true } : item,
+        ),
+      );
+    });
   };
 
   const toggleSelected = (messageId: string) => {
@@ -290,13 +466,37 @@ export default function FlowConsole() {
 
   const toggleStarred = (event: MouseEvent, messageId: string) => {
     event.stopPropagation();
+    const message = messages.find(item => item.id === messageId);
+    const starred = !message?.starred;
+
     setMessages(current =>
-      current.map(message =>
-        message.id === messageId
-          ? { ...message, starred: !message.starred }
-          : message,
+      current.map(item =>
+        item.id === messageId ? { ...item, starred } : item,
       ),
     );
+
+    fetch(apiUrl(`/flow/messages/${messageId}/star`), {
+      body: JSON.stringify({ starred }),
+      credentials: 'include',
+      headers: { 'Content-Type': 'application/json', ...flowHeaders() },
+      method: 'POST',
+    })
+      .then(response => responseJson<{ starred: boolean }>(response))
+      .then(refreshMessages)
+      .catch(error => {
+        setMessages(current =>
+          current.map(item =>
+            item.id === messageId
+              ? { ...item, starred: Boolean(message?.starred) }
+              : item,
+          ),
+        );
+        setStatus({
+          kind: 'info',
+          text:
+            error instanceof Error ? error.message : 'Star update failed.',
+        });
+      });
   };
 
   const openMessageFromKeyboard = (
@@ -308,49 +508,75 @@ export default function FlowConsole() {
     openMessage(messageId);
   };
 
-  const deleteSelected = () => {
+  const deleteSelected = async () => {
     if (selectedIds.length === 0) return;
 
-    if (activeFolder === 'bin') {
-      setMessages(current =>
-        current.filter(message => !selectedIds.includes(message.id)),
-      );
-      setStatus({ kind: 'success', text: 'Selected conversations deleted.' });
-    } else {
-      setMessages(current =>
-        current.map(message =>
-          selectedIds.includes(message.id)
-            ? { ...message, folder: 'bin', unread: false }
-            : message,
+    try {
+      await Promise.all(
+        selectedIds.map(messageId =>
+          fetch(
+            apiUrl(
+              activeFolder === 'bin'
+                ? `/flow/messages/${messageId}`
+                : `/flow/messages/${messageId}/trash`,
+            ),
+            {
+              credentials: 'include',
+              headers: flowHeaders(),
+              method: activeFolder === 'bin' ? 'DELETE' : 'POST',
+            },
+          ).then(response => responseJson(response)),
         ),
       );
-      setStatus({ kind: 'info', text: 'Selected conversations moved to Bin.' });
-    }
 
-    setSelectedIds([]);
-    setSelectedMessageId(null);
+      setStatus(
+        activeFolder === 'bin'
+          ? { kind: 'success', text: 'Selected conversations deleted.' }
+          : { kind: 'info', text: 'Selected conversations moved to Bin.' },
+      );
+      setSelectedIds([]);
+      setSelectedMessageId(null);
+      refreshMessages();
+    } catch (error) {
+      setStatus({
+        kind: 'info',
+        text:
+          error instanceof Error ? error.message : 'Delete action failed.',
+      });
+    }
   };
 
-  const deleteOpenMessage = () => {
+  const deleteOpenMessage = async () => {
     if (!selectedMessage) return;
 
-    if (selectedMessage.folder === 'bin') {
-      setMessages(current =>
-        current.filter(message => message.id !== selectedMessage.id),
-      );
-      setStatus({ kind: 'success', text: 'Conversation deleted.' });
-    } else {
-      setMessages(current =>
-        current.map(message =>
-          message.id === selectedMessage.id
-            ? { ...message, folder: 'bin', unread: false }
-            : message,
+    try {
+      await fetch(
+        apiUrl(
+          selectedMessage.folder === 'bin'
+            ? `/flow/messages/${selectedMessage.id}`
+            : `/flow/messages/${selectedMessage.id}/trash`,
         ),
-      );
-      setStatus({ kind: 'info', text: 'Conversation moved to Bin.' });
-    }
+        {
+          credentials: 'include',
+          headers: flowHeaders(),
+          method: selectedMessage.folder === 'bin' ? 'DELETE' : 'POST',
+        },
+      ).then(response => responseJson(response));
 
-    setSelectedMessageId(null);
+      setStatus(
+        selectedMessage.folder === 'bin'
+          ? { kind: 'success', text: 'Conversation deleted.' }
+          : { kind: 'info', text: 'Conversation moved to Bin.' },
+      );
+      setSelectedMessageId(null);
+      refreshMessages();
+    } catch (error) {
+      setStatus({
+        kind: 'info',
+        text:
+          error instanceof Error ? error.message : 'Delete action failed.',
+      });
+    }
   };
 
   const updateComposeField =
@@ -371,26 +597,28 @@ export default function FlowConsole() {
     composeFields.subject.trim() ||
     composeFields.body.trim();
 
-  const saveDraftAndClose = () => {
+  const saveDraftAndClose = async () => {
     if (hasDraftContent) {
-      const now = new Date().toISOString();
-
-      setMessages(current => [
-        {
-          body: composeFields.body,
-          date: now,
-          folder: 'drafts',
-          from: 'flow@chefuinc.com',
-          id: makeMessageId(),
-          name: 'Draft',
-          starred: false,
-          subject: composeFields.subject || '(no subject)',
-          to: composeFields.to || 'recipient@example.com',
-          unread: false,
-        },
-        ...current,
-      ]);
-      setStatus({ kind: 'success', text: 'Draft saved locally.' });
+      try {
+        await fetch(apiUrl('/flow/drafts'), {
+          body: JSON.stringify({
+            body: composeFields.body,
+            from: config.defaultFrom,
+            subject: composeFields.subject,
+            to: parseRecipients(composeFields.to),
+          }),
+          credentials: 'include',
+          headers: { 'Content-Type': 'application/json', ...flowHeaders() },
+          method: 'POST',
+        }).then(response => responseJson(response));
+        setStatus({ kind: 'success', text: 'Draft saved.' });
+        if (activeFolder === 'drafts') refreshMessages();
+      } catch (error) {
+        setStatus({
+          kind: 'info',
+          text: error instanceof Error ? error.message : 'Draft save failed.',
+        });
+      }
     }
 
     setComposeOpen(false);
@@ -402,32 +630,54 @@ export default function FlowConsole() {
     resetCompose();
   };
 
-  const submitCompose = (event: FormEvent<HTMLFormElement>) => {
+  const submitCompose = async (event: FormEvent<HTMLFormElement>) => {
     event.preventDefault();
+    const recipients = parseRecipients(composeFields.to);
 
-    const now = new Date().toISOString();
+    if (!recipients.length) {
+      setStatus({ kind: 'info', text: 'Enter at least one valid recipient.' });
+      return;
+    }
 
-    setMessages(current => [
-      {
-        body: composeFields.body,
-        date: now,
-        folder: 'sent',
-        from: 'flow@chefuinc.com',
-        id: makeMessageId(),
-        name: 'Flow Mail',
-        starred: false,
-        subject: composeFields.subject || '(no subject)',
-        to: composeFields.to || 'recipient@example.com',
-        unread: false,
-      },
-      ...current,
-    ]);
-    setActiveFolder('sent');
-    setSelectedMessageId(null);
-    setSelectedIds([]);
-    setComposeOpen(false);
-    setStatus({ kind: 'success', text: 'Message added to Sent.' });
-    resetCompose();
+    try {
+      const response = await fetch(apiUrl('/flow/send'), {
+        body: JSON.stringify({
+          action: 'campaign',
+          from: config.defaultFrom,
+          html: composeFields.body,
+          recipients: recipients.map(email => ({
+            email,
+            firstName: email.split('@')[0],
+            tags: ['manual'],
+          })),
+          subject: composeFields.subject,
+          tags: ['flow'],
+        }),
+        credentials: 'include',
+        headers: { 'Content-Type': 'application/json', ...flowHeaders() },
+        method: 'POST',
+      });
+      const data = await responseJson<{ count?: number }>(response);
+
+      setIsLoadingMessages(true);
+      setActiveFolder('sent');
+      setSelectedMessageId(null);
+      setSelectedIds([]);
+      setComposeOpen(false);
+      setStatus({
+        kind: 'success',
+        text: `Email sent to ${data.count || recipients.length} recipient${
+          (data.count || recipients.length) === 1 ? '' : 's'
+        }.`,
+      });
+      resetCompose();
+      refreshMessages();
+    } catch (error) {
+      setStatus({
+        kind: 'info',
+        text: error instanceof Error ? error.message : 'Send failed.',
+      });
+    }
   };
 
   return (
@@ -481,9 +731,57 @@ export default function FlowConsole() {
           <button aria-label="Apps" className={styles.iconButton} type="button">
             <Grid3X3 size={22} />
           </button>
-          <button aria-label="Account" className={styles.iconButton} type="button">
-            <UserCircle size={25} />
-          </button>
+          <div className={styles.accountWrap}>
+            <button
+              aria-expanded={accountOpen}
+              aria-label="Account details"
+              className={styles.accountButton}
+              onClick={() => setAccountOpen(open => !open)}
+              type="button"
+            >
+              <span aria-hidden="true">{accountInitial}</span>
+              <UserCircle size={25} />
+            </button>
+
+            {accountOpen ? (
+              <section className={styles.accountMenu} aria-label="Account details">
+                <div className={styles.accountSummary}>
+                  <span className={styles.accountAvatar} aria-hidden="true">
+                    {accountInitial}
+                  </span>
+                  <div>
+                    <strong>{accessSession.keyLabel}</strong>
+                    <span>Registered Flow access key</span>
+                  </div>
+                </div>
+
+                <div className={styles.accountDetail}>
+                  <KeyRound size={16} />
+                  <div>
+                    <span>Authenticated as</span>
+                    <strong>{accessSession.keyLabel}</strong>
+                  </div>
+                </div>
+
+                <div className={styles.accountDetail}>
+                  <Clock3 size={16} />
+                  <div>
+                    <span>Session expires</span>
+                    <strong>{sessionExpiry}</strong>
+                  </div>
+                </div>
+
+                <button
+                  className={styles.lockButton}
+                  onClick={() => void onLock()}
+                  type="button"
+                >
+                  <LogOut size={16} />
+                  Lock Flow
+                </button>
+              </section>
+            ) : null}
+          </div>
         </div>
       </header>
 
@@ -557,7 +855,7 @@ export default function FlowConsole() {
 
               <h1 className={styles.readerSubject}>
                 {selectedMessage.subject}
-                <span>{getFolderLabel(selectedMessage.folder)}</span>
+                <span>{getMessageFolderLabel(selectedMessage.folder)}</span>
               </h1>
 
               <div className={styles.readerBody}>
@@ -569,14 +867,14 @@ export default function FlowConsole() {
                     <div>
                       <strong>
                         {selectedMessage.folder === 'sent'
-                          ? selectedMessage.to.split('@')[0]
+                          ? selectedMessage.to[0]?.split('@')[0] || 'recipient'
                           : selectedMessage.name}
                       </strong>
                       <span>
                         {' '}
                         &lt;
                         {selectedMessage.folder === 'sent'
-                          ? selectedMessage.to
+                          ? selectedMessage.to.join(', ')
                           : selectedMessage.from}
                         &gt;
                       </span>
@@ -629,7 +927,9 @@ export default function FlowConsole() {
               ) : null}
 
               <div className={styles.messageList}>
-                {visibleMessages.length ? (
+                {isLoadingMessages ? (
+                  <div className={styles.loadingState}>Loading mail...</div>
+                ) : visibleMessages.length ? (
                   visibleMessages.map(message => (
                     <div
                       className={
@@ -672,12 +972,14 @@ export default function FlowConsole() {
                       </button>
                       <span className={styles.sender}>
                         {message.folder === 'sent'
-                          ? `To:${message.to.split('@')[0]}`
+                          ? `To:${message.to[0]?.split('@')[0] || 'recipient'}`
                           : message.name}
                       </span>
                       <span className={styles.preview}>
                         <span>{message.subject}</span>
-                        {message.body ? <em>- {message.body}</em> : null}
+                        {message.preview || message.body ? (
+                          <em>- {message.preview || message.body}</em>
+                        ) : null}
                       </span>
                       <time>{formatListDate(message.date)}</time>
                     </div>

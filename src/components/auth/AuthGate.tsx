@@ -13,6 +13,7 @@ import {
   CardHeader,
   CardTitle,
 } from '@/components/ui/card';
+import { apiUrl } from '@/lib/api';
 import styles from './AuthGate.module.css';
 
 type AuthGateProps = {
@@ -45,7 +46,7 @@ export function AuthGate({ children }: AuthGateProps) {
   useEffect(() => {
     let active = true;
 
-    fetch('/api/flow-access', {
+    fetch(apiUrl('/flow/access/session'), {
       cache: 'no-store',
       credentials: 'include',
     })
@@ -81,7 +82,7 @@ export function AuthGate({ children }: AuthGateProps) {
   }, [nextPath, router]);
 
   const handleLock = useCallback(async () => {
-    await fetch('/api/flow-access', {
+    await fetch(apiUrl('/flow/access/session'), {
       credentials: 'include',
       method: 'DELETE',
     });

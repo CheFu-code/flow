@@ -91,8 +91,7 @@ function withRequestId(response: NextResponse, request: NextRequest) {
 function isPublicPath(pathname: string) {
   return (
     pathname === "/login" ||
-    pathname === "/register" ||
-    pathname.startsWith("/api/flow-access")
+    pathname === "/register"
   );
 }
 
