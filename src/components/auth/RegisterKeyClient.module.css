@@ -112,10 +112,10 @@
 .keyInput {
   display: grid;
   min-height: 48px;
-  grid-template-columns: auto minmax(0, 1fr) auto;
+  grid-template-columns: auto minmax(0, 1fr);
   align-items: center;
   gap: 10px;
-  padding: 0 8px 0 13px;
+  padding: 0 13px;
   color: #5f6368;
 }
 
@@ -129,25 +129,6 @@
   box-shadow: none;
 }
 
-.keyInput button {
-  display: inline-flex;
-  height: 34px;
-  align-items: center;
-  gap: 7px;
-  border: 0;
-  border-radius: 8px;
-  background: #eaf1fb;
-  color: #0b57d0;
-  font-size: 13px;
-  font-weight: 700;
-  padding: 0 10px;
-}
-
-.keyInput button:hover {
-  background: #d3e3fd;
-}
-
-.keyInput button:disabled,
 .submitButton:disabled {
   cursor: not-allowed;
   opacity: 0.62;
@@ -238,12 +219,6 @@
   }
 
   .keyInput {
-    grid-template-columns: auto minmax(0, 1fr);
     padding-block: 7px;
-  }
-
-  .keyInput button {
-    grid-column: 1 / -1;
-    justify-content: center;
   }
 }

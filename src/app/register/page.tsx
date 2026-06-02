@@ -3,8 +3,8 @@ import { Suspense } from 'react';
 import { RegisterKeyClient } from '@/components/auth/RegisterKeyClient';
 
 export const metadata: Metadata = {
-  title: 'Register key | Flow Mail',
-  description: 'Register an employee Flow access key.',
+  title: 'Activate key | Flow Mail',
+  description: 'Activate a company-issued Flow access key.',
 };
 
 export default function RegisterPage() {

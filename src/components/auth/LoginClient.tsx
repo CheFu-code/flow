@@ -69,7 +69,7 @@ export function LoginClient() {
       const data = (await response.json()) as FlowAccessResponse;
 
       if (!response.ok || !data.granted) {
-        throw new Error(data.error || 'That Flow key is not registered.');
+        throw new Error(data.error || 'That Flow key is not active.');
       }
 
       router.replace(nextPath);
@@ -78,7 +78,7 @@ export function LoginClient() {
       setError(
         caughtError instanceof Error
           ? caughtError.message
-          : 'That Flow key is not registered.',
+          : 'That Flow key is not active.',
       );
     } finally {
       setIsSubmitting(false);
@@ -142,13 +142,13 @@ export function LoginClient() {
         </form>
 
         <p className={styles.note}>
-          Use the Flow key registered for your employee workspace.
+          Use the Flow key assigned to your employee workspace.
         </p>
 
         <div className={styles.footerRow}>
           <span>Need a key?</span>
           <Link href={`/register?next=${encodeURIComponent(nextPath)}`}>
-            Register access key
+            Activate company key
           </Link>
         </div>
       </section>
