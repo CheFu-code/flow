@@ -1,6 +1,6 @@
 'use client';
 
-import { AlertCircle, Loader2, LogIn, ShieldCheck } from 'lucide-react';
+import { AlertCircle, KeyRound, Loader2, LogIn } from 'lucide-react';
 import { usePathname, useRouter } from 'next/navigation';
 import type { ReactNode } from 'react';
 import { useCallback, useEffect, useMemo, useState } from 'react';
@@ -13,73 +13,81 @@ import {
   CardHeader,
   CardTitle,
 } from '@/components/ui/card';
-import {
-  appReturnTo,
-  chefuLoginUrl,
-  chefuLogoutUrl,
-  getChefuSessionUser,
-  type ChefuSessionUser,
-} from '@/lib/chefu-account';
-import { clearSessionCookie } from '@/lib/client-session';
 import styles from './AuthGate.module.css';
 
 type AuthGateProps = {
   children: (props: {
-    user: ChefuSessionUser;
-    onSignOut: () => Promise<void>;
+    onLock: () => Promise<void>;
+    session: AuthenticatedFlowSession;
   }) => ReactNode;
 };
 
+type FlowAccessSession =
+  | { granted: true; expiresAt: string; keyLabel: string }
+  | { granted: false; expiresAt?: never; keyLabel?: never };
+
+type AuthenticatedFlowSession = Extract<FlowAccessSession, { granted: true }>;
+
 type GateState =
-  | { status: 'checking'; user: null; message: string }
-  | { status: 'ready'; user: ChefuSessionUser; message: null }
-  | { status: 'error'; user: null; message: string };
+  | { message: string; status: 'checking' }
+  | { message: null; session: AuthenticatedFlowSession; status: 'ready' }
+  | { message: string; status: 'error' };
 
 export function AuthGate({ children }: AuthGateProps) {
   const pathname = usePathname();
   const router = useRouter();
-  const returnTo = useMemo(() => appReturnTo(pathname || '/'), [pathname]);
-  const loginUrl = useMemo(() => chefuLoginUrl(returnTo), [returnTo]);
+  const nextPath = useMemo(() => pathname || '/', [pathname]);
   const [gateState, setGateState] = useState<GateState>({
-    message: 'Opening secure workspace...',
+    message: 'Checking Flow access key...',
     status: 'checking',
-    user: null,
   });
 
   useEffect(() => {
     let active = true;
 
-    getChefuSessionUser()
-      .then(user => {
+    fetch('/api/flow-access', {
+      cache: 'no-store',
+      credentials: 'include',
+    })
+      .then(response => response.json())
+      .then((session: FlowAccessSession) => {
         if (!active) return;
-        setGateState({ message: null, status: 'ready', user });
+
+        if (session.granted) {
+          setGateState({ message: null, session, status: 'ready' });
+          return;
+        }
+
+        router.replace(`/login?next=${encodeURIComponent(nextPath)}`);
       })
       .catch(error => {
         if (!active) return;
         setGateState({
           message:
-            error instanceof Error ? error.message : 'Authentication required.',
-          status: 'checking',
-          user: null,
+            error instanceof Error
+              ? error.message
+              : 'Flow access could not be checked.',
+          status: 'error',
         });
-        window.location.replace(loginUrl);
       });
 
     return () => {
       active = false;
     };
-  }, [loginUrl]);
+  }, [nextPath, router]);
 
-  const handleSignOut = useCallback(async () => {
-    await clearSessionCookie();
-    window.location.assign(chefuLogoutUrl(appReturnTo('/login')));
-  }, []);
+  const handleEnterKey = useCallback(() => {
+    router.replace(`/login?next=${encodeURIComponent(nextPath)}`);
+  }, [nextPath, router]);
 
-  const handleRetrySignIn = useCallback(async () => {
-    await clearSessionCookie();
-    window.location.assign(loginUrl);
+  const handleLock = useCallback(async () => {
+    await fetch('/api/flow-access', {
+      credentials: 'include',
+      method: 'DELETE',
+    });
+    router.replace(`/login?next=${encodeURIComponent(nextPath)}`);
     router.refresh();
-  }, [loginUrl, router]);
+  }, [nextPath, router]);
 
   if (gateState.status === 'checking') {
     return (
@@ -87,7 +95,7 @@ export function AuthGate({ children }: AuthGateProps) {
         <Card className={styles.card} size="sm">
           <CardContent className={styles.loadingContent}>
             <div className={styles.brandMark} aria-hidden="true">
-              <ShieldCheck className="size-5" />
+              <KeyRound className="size-5" />
             </div>
             <div className={styles.copy}>
               <h1>Securing Flow</h1>
@@ -108,9 +116,9 @@ export function AuthGate({ children }: AuthGateProps) {
             <div className={styles.errorMark} aria-hidden="true">
               <AlertCircle className="size-5" />
             </div>
-            <CardTitle>Session needs attention</CardTitle>
+            <CardTitle>Access needs attention</CardTitle>
             <CardDescription>
-              Flow could not open a secure workspace session.
+              Flow could not confirm a registered employee key.
             </CardDescription>
           </CardHeader>
           <CardContent className={styles.errorContent}>
@@ -121,10 +129,10 @@ export function AuthGate({ children }: AuthGateProps) {
             <Button
               type="button"
               className={styles.retryButton}
-              onClick={handleRetrySignIn}
+              onClick={handleEnterKey}
             >
               <LogIn className="size-4" />
-              Sign in again
+              Enter access key
             </Button>
           </CardContent>
         </Card>
@@ -133,7 +141,7 @@ export function AuthGate({ children }: AuthGateProps) {
   }
 
   return children({
-    onSignOut: handleSignOut,
-    user: gateState.user,
+    onLock: handleLock,
+    session: gateState.session,
   });
 }

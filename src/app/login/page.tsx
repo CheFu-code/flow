@@ -3,8 +3,8 @@ import { Suspense } from 'react';
 import { LoginClient } from '@/components/auth/LoginClient';
 
 export const metadata: Metadata = {
-  title: 'Sign in | Flow Mail',
-  description: 'Sign in to Flow Mail.',
+  title: 'Access key | Flow Mail',
+  description: 'Enter a registered Flow access key.',
 };
 
 export default function LoginPage() {
