@@ -8,7 +8,6 @@ Flow Mail is CheFu Inc's standalone email client. The Next.js app provides the m
 
 ```bash
 NEXT_PUBLIC_API_BASE_URL=http://localhost:4000
-NEXT_PUBLIC_FLOW_API_KEY=
 FLOW_ACCESS_SECRET=flow-local-development-secret
 ```
 
@@ -27,10 +26,10 @@ FLOW_MAX_RECIPIENTS=100
 FRONTEND_ORIGINS=https://academy.chefuinc.com,https://flow.chefuinc.com
 ```
 
-If `FLOW_API_KEY` is set on the backend, `NEXT_PUBLIC_FLOW_API_KEY` must match it.
-`FLOW_ACCESS_SECRET` must also match on both apps because the backend signs the
-Flow access cookie and the Next.js proxy verifies it before rendering protected
-pages.
+`FLOW_API_KEY` is server-only and is reserved for trusted backend or webhook
+callers. Browser access uses the signed `flow_access` cookie. `FLOW_ACCESS_SECRET`
+must match on both apps because the backend signs the Flow access cookie and the
+Next.js proxy verifies it before rendering protected pages.
 
 ## Access Keys
 

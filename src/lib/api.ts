@@ -6,10 +6,6 @@ export function apiUrl(path: string) {
 }
 
 export function flowHeaders() {
-  const apiKey = process.env.NEXT_PUBLIC_FLOW_API_KEY;
-
-  return {
-    ...(apiKey ? { 'x-flow-api-key': apiKey } : {}),
-  };
+  return {};
 }
 
