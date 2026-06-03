@@ -124,7 +124,7 @@ export function renderEmailShell({
 }) {
   const action =
     ctaLabel && ctaUrl
-      ? `<a href="${escapeAttribute(ctaUrl)}" style="display:inline-block;background:#1a73e8;color:#ffffff;text-decoration:none;border-radius:999px;padding:12px 18px;font-size:14px;font-weight:700;">${escapeHtml(ctaLabel)}</a>`
+      ? `<a href="${escapeAttribute(ctaUrl)}" style="display:inline-block;background:#0f766e;color:#ffffff;text-decoration:none;border-radius:999px;padding:12px 18px;font-size:14px;font-weight:700;">${escapeHtml(ctaLabel)}</a>`
       : '';
 
   return `<!doctype html>
@@ -142,7 +142,7 @@ export function renderEmailShell({
           <table role="presentation" width="100%" cellspacing="0" cellpadding="0" style="max-width:680px;background:#ffffff;border:1px solid #dfe4ea;border-radius:18px;overflow:hidden;">
             <tr>
               <td style="padding:26px 30px;border-bottom:1px solid #dfe4ea;">
-                <div style="font-size:12px;font-weight:800;letter-spacing:.08em;text-transform:uppercase;color:#1a73e8;">Flow Mail</div>
+                <div style="font-size:12px;font-weight:800;letter-spacing:.08em;text-transform:uppercase;color:#0f766e;">Flow Mail</div>
                 <h1 style="margin:12px 0 0;font-size:26px;line-height:1.25;color:#202124;">${escapeHtml(title)}</h1>
               </td>
             </tr>

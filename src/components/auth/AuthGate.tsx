@@ -1,6 +1,6 @@
 'use client';
 
-import { AlertCircle, KeyRound, Loader2, LogIn } from 'lucide-react';
+import { AlertCircle, Loader2, LogIn } from 'lucide-react';
 import { usePathname, useRouter } from 'next/navigation';
 import type { ReactNode } from 'react';
 import { useCallback, useEffect, useMemo, useState } from 'react';
@@ -13,6 +13,7 @@ import {
   CardHeader,
   CardTitle,
 } from '@/components/ui/card';
+import { FlowMark } from '@/components/brand/FlowMark';
 import { apiUrl } from '@/lib/api';
 import styles from './AuthGate.module.css';
 
@@ -95,9 +96,7 @@ export function AuthGate({ children }: AuthGateProps) {
       <main className={styles.shell}>
         <Card className={styles.card} size="sm">
           <CardContent className={styles.loadingContent}>
-            <div className={styles.brandMark} aria-hidden="true">
-              <KeyRound className="size-5" />
-            </div>
+            <FlowMark className={styles.brandMark} size="md" />
             <div className={styles.copy}>
               <h1>Securing Flow</h1>
               <p>{gateState.message}</p>

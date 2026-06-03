@@ -34,8 +34,7 @@
 }
 
 .brandMark {
-  background: var(--auth-gate-mark-bg);
-  color: var(--auth-gate-mark-color);
+  box-shadow: 0 12px 26px rgba(20, 184, 166, 0.24);
 }
 
 .errorMark {
@@ -66,7 +65,7 @@
 .loader {
   width: 20px;
   height: 20px;
-  color: #7dd3fc;
+  color: #14b8a6;
   animation: spin 1s linear infinite;
 }
 

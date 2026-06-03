@@ -23,6 +23,7 @@ import {
 } from 'lucide-react';
 import type { ChangeEvent, FormEvent, KeyboardEvent, MouseEvent } from 'react';
 import { useEffect, useMemo, useState } from 'react';
+import { FlowMark } from '@/components/brand/FlowMark';
 import { apiUrl, flowHeaders } from '@/lib/api';
 import styles from './FlowConsole.module.css';
 
@@ -693,9 +694,7 @@ export default function FlowConsole({
         </button>
 
         <div className={styles.brand} aria-label="Flow Mail">
-          <span className={styles.brandMark}>
-            <Mail size={24} />
-          </span>
+          <FlowMark className={styles.brandMark} size="sm" />
           <span className={styles.brandText}>Flow Mail</span>
         </div>
 

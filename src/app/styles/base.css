@@ -6,11 +6,11 @@
   --line: #dfe4ea;
   --panel: #ffffff;
   --panel-soft: #f8fafc;
-  --blue: #1a73e8;
-  --blue-dark: #0b57d0;
-  --red: #ea4335;
-  --yellow: #fbbc04;
-  --green: #188038;
+  --blue: #0f766e;
+  --blue-dark: #115e59;
+  --red: #c2410c;
+  --yellow: #f59e0b;
+  --green: #047857;
   --background: var(--flow-background);
   --foreground: oklch(0.145 0 0);
   --card: oklch(1 0 0);

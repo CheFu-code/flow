@@ -58,25 +58,13 @@
 }
 
 .brandMark {
-  display: grid;
   width: 38px;
   height: 38px;
-  flex: 0 0 auto;
-  place-items: center;
-  border-radius: 8px;
-  background:
-    linear-gradient(135deg, #4285f4 0 38%, transparent 38%),
-    linear-gradient(225deg, #34a853 0 38%, transparent 38%),
-    linear-gradient(45deg, #ea4335 0 38%, transparent 38%),
-    linear-gradient(315deg, #fbbc04 0 38%, transparent 38%),
-    #ffffff;
-  color: #1f1f1f;
-  box-shadow: inset 0 0 0 1px rgba(60, 64, 67, 0.12);
 }
 
 .brandText {
   overflow: hidden;
-  color: #5f6368;
+  color: #334155;
   font-size: 22px;
   font-weight: 500;
   line-height: 1;
@@ -91,7 +79,7 @@
   align-items: center;
   gap: 12px;
   border-radius: 8px;
-  background: #eaf1fb;
+  background: #e6fffb;
   padding: 0 16px;
   color: #5f6368;
 }
@@ -100,7 +88,7 @@
   background: #ffffff;
   box-shadow:
     0 1px 1px rgba(60, 64, 67, 0.3),
-    0 1px 3px 1px rgba(60, 64, 67, 0.15);
+    0 1px 3px 1px rgba(15, 118, 110, 0.15);
 }
 
 .searchBox input {
@@ -161,7 +149,7 @@
   height: 28px;
   place-items: center;
   border-radius: 999px;
-  background: #0b57d0;
+  background: #0f766e;
   color: #ffffff;
   font-size: 13px;
   font-weight: 700;
@@ -204,7 +192,7 @@
   height: 42px;
   place-items: center;
   border-radius: 999px;
-  background: #0b57d0;
+  background: #0f766e;
   color: #ffffff;
   font-size: 16px;
   font-weight: 700;
@@ -294,8 +282,8 @@
   gap: 10px;
   border: 0;
   border-radius: 16px;
-  background: #c2e7ff;
-  color: #001d35;
+  background: #ccfbf1;
+  color: #042f2e;
   font-size: 14px;
   font-weight: 500;
   padding: 0 18px;
@@ -338,7 +326,7 @@
 
 .folderActive,
 .folderActive:hover {
-  background: #d3e3fd;
+  background: #ccfbf1;
 }
 
 .folderButton span {
@@ -380,7 +368,7 @@
   width: 18px;
   height: 18px;
   flex: 0 0 auto;
-  accent-color: #0b57d0;
+  accent-color: #0f766e;
   cursor: pointer;
 }
 
@@ -417,10 +405,10 @@
 
 .status {
   margin: 10px 16px;
-  border: 1px solid #d3e3fd;
+  border: 1px solid #99f6e4;
   border-radius: 8px;
-  background: #f2f6fc;
-  color: #174ea6;
+  background: #f0fdfa;
+  color: #0f766e;
   padding: 10px 12px;
   font-size: 13px;
 }
@@ -463,7 +451,7 @@
 }
 
 .messageRow:focus-visible {
-  outline: 2px solid #0b57d0;
+  outline: 2px solid #0f766e;
   outline-offset: -2px;
 }
 
@@ -478,7 +466,7 @@
 }
 
 .rowStarActive {
-  color: #fbbc04;
+  color: #f59e0b;
 }
 
 .sender,
@@ -753,14 +741,14 @@
   height: 36px;
   border: 0;
   border-radius: 18px;
-  background: #0b57d0;
+  background: #0f766e;
   color: #ffffff;
   font-size: 14px;
   font-weight: 500;
 }
 
 .sendButton:hover {
-  background: #0842a0;
+  background: #115e59;
 }
 
 @media (max-width: 920px) {

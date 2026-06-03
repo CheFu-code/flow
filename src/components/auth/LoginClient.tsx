@@ -1,10 +1,11 @@
 'use client';
 
-import { AlertCircle, KeyRound, Loader2, LockKeyhole, ShieldCheck } from 'lucide-react';
+import { AlertCircle, KeyRound, Loader2, ShieldCheck } from 'lucide-react';
 import Link from 'next/link';
 import { useRouter, useSearchParams } from 'next/navigation';
 import type { FormEvent } from 'react';
 import { useEffect, useMemo, useState } from 'react';
+import { FlowMark } from '@/components/brand/FlowMark';
 import { apiUrl } from '@/lib/api';
 import styles from './LoginClient.module.css';
 
@@ -89,9 +90,7 @@ export function LoginClient() {
     <main className={styles.shell}>
       <section className={styles.panel} aria-label="Flow access">
         <div className={styles.identity}>
-          <span className={styles.brandMark} aria-hidden="true">
-            <LockKeyhole size={26} />
-          </span>
+          <FlowMark className={styles.brandMark} size="lg" />
           <div>
             <span>Flow Mail</span>
             <h1>Employee access</h1>

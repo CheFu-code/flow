@@ -9,7 +9,7 @@
   --gmail-muted-2: #8f9296;
   --gmail-hover: #2b2c2f;
   --gmail-active: #4a4b4d;
-  --gmail-blue: #8ab4f8;
+  --gmail-blue: #67e8f9;
   --gmail-compose: #f1f3f4;
   display: grid;
   min-height: 100dvh;
@@ -248,7 +248,7 @@
   width: 36px;
   height: 36px;
   border-radius: 10px;
-  background: linear-gradient(135deg, #4285f4, #34a853 52%, #fbbc04);
+  background: linear-gradient(135deg, #062f35, #0f766e 52%, #14b8a6);
   color: #101010;
 }
 
@@ -547,7 +547,7 @@
 }
 
 .gmail-row .star.active {
-  color: #fbbc04;
+  color: #f59e0b;
 }
 
 .gmail-sender,
@@ -846,9 +846,9 @@
   --gmail-muted: #536273;
   --gmail-muted-2: #6d7b8c;
   --gmail-hover: #e7f0fb;
-  --gmail-active: #cfe5ff;
-  --gmail-blue: #2563eb;
-  --gmail-compose: #2563eb;
+  --gmail-active: #ccfbf1;
+  --gmail-blue: #0f766e;
+  --gmail-compose: #0f766e;
   min-height: 100dvh;
   background:
     linear-gradient(90deg, rgba(37, 99, 235, 0.12), transparent 34%),
@@ -1142,9 +1142,9 @@
   --gmail-text: #111827;
   --gmail-muted: #556577;
   --gmail-muted-2: #758396;
-  --gmail-hover: #eef6ff;
-  --gmail-active: #dbeeff;
-  --gmail-blue: #1457d9;
+  --gmail-hover: #ecfeff;
+  --gmail-active: #ccfbf1;
+  --gmail-blue: #0f766e;
   --gmail-compose: #111827;
   background:
     radial-gradient(circle at 14% 0%, rgba(20, 87, 217, 0.18), transparent 28rem),
@@ -1512,7 +1512,7 @@
   --gmail-muted-2: #7f8da1;
   --gmail-hover: #172235;
   --gmail-active: #20314c;
-  --gmail-blue: #7dd3fc;
+  --gmail-blue: #67e8f9;
   --gmail-compose: #e5edf7;
   background:
     radial-gradient(circle at 16% 0%, rgba(125, 211, 252, 0.13), transparent 28rem),

@@ -5,12 +5,12 @@ import {
   BadgeCheck,
   KeyRound,
   Loader2,
-  LockKeyhole,
 } from 'lucide-react';
 import Link from 'next/link';
 import { useRouter, useSearchParams } from 'next/navigation';
 import type { FormEvent } from 'react';
 import { useMemo, useState } from 'react';
+import { FlowMark } from '@/components/brand/FlowMark';
 import { apiUrl } from '@/lib/api';
 import styles from './RegisterKeyClient.module.css';
 
@@ -67,9 +67,7 @@ export function RegisterKeyClient() {
     <main className={styles.shell}>
       <section className={styles.panel} aria-label="Activate Flow key">
         <div className={styles.identity}>
-          <span className={styles.brandMark} aria-hidden="true">
-            <LockKeyhole size={26} />
-          </span>
+          <FlowMark className={styles.brandMark} size="lg" />
           <div>
             <span>Flow Mail</span>
             <h1>Activate access key</h1>
