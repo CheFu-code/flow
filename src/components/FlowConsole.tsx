@@ -8,6 +8,7 @@ import {
   Grid3X3,
   Inbox,
   KeyRound,
+  Loader2,
   LogOut,
   Mail,
   Menu,
@@ -21,8 +22,13 @@ import {
   UserCircle,
   X,
 } from 'lucide-react';
-import type { ChangeEvent, FormEvent, KeyboardEvent, MouseEvent } from 'react';
-import { useEffect, useMemo, useState } from 'react';
+import type {
+  ChangeEvent,
+  FormEvent,
+  KeyboardEvent,
+  MouseEvent,
+} from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import { FlowMark } from '@/components/brand/FlowMark';
 import { apiUrl, flowHeaders } from '@/lib/api';
 import styles from './FlowConsole.module.css';
@@ -46,8 +52,12 @@ type MailMessage = {
   html?: string;
   id: string;
   inReplyTo?: string;
+  isReaction?: boolean;
   name: string;
   preview: string;
+  reactionCount?: number;
+  reactionEmoji?: string;
+  reactionFrom?: string;
   references?: string[];
   starred: boolean;
   subject: string;
@@ -57,13 +67,21 @@ type MailMessage = {
 };
 
 type MailThread = {
+  allMessages: MailMessage[];
   count: number;
   id: string;
   latest: MailMessage;
   messages: MailMessage[];
+  reactions: MailReaction[];
   starred: boolean;
   subject: string;
   unread: boolean;
+};
+
+type MailReaction = {
+  count: number;
+  emoji: string;
+  from: string;
 };
 
 type ComposeFields = {
@@ -102,7 +120,11 @@ type BackendMessage = {
   html?: string;
   id: string;
   inReplyTo?: string;
+  isReaction?: boolean;
   preview?: string;
+  reactionCount?: number;
+  reactionEmoji?: string;
+  reactionFrom?: string;
   receivedAt?: string;
   references?: string[];
   sentAt?: string;
@@ -122,6 +144,13 @@ type BackendMessagesResponse = {
 type ServerSentEvent = {
   data: string;
   event: string;
+};
+
+type DeleteConfirm = {
+  body: string;
+  messageIds: string[];
+  permanent: boolean;
+  title: string;
 };
 
 type FlowConsoleProps = {
@@ -196,6 +225,8 @@ const initialCompose: ComposeFields = {
   subject: '',
   to: '',
 };
+
+const defaultReactionEmoji = '\u{1F44D}';
 
 function formatListDate(value: string) {
   return new Intl.DateTimeFormat('en', {
@@ -278,8 +309,12 @@ function toMailMessage(message: BackendMessage): MailMessage {
     html: message.html,
     id: message.id,
     inReplyTo: message.inReplyTo,
+    isReaction: Boolean(message.isReaction),
     name: participantName(message),
     preview: message.preview || message.text || '',
+    reactionCount: Number(message.reactionCount) || undefined,
+    reactionEmoji: message.reactionEmoji,
+    reactionFrom: message.reactionFrom,
     references: Array.isArray(message.references) ? message.references : [],
     starred: Boolean(message.starred),
     subject: message.subject || '(no subject)',
@@ -311,20 +346,69 @@ function groupMessagesIntoThreads(messages: MailMessage[]): MailThread[] {
 
   return [...groups.entries()]
     .map(([id, threadMessages]) => {
-      const orderedMessages = [...threadMessages].sort(sortByDateAsc);
-      const latest = [...threadMessages].sort(sortByDateDesc)[0];
+      const orderedAllMessages = [...threadMessages].sort(sortByDateAsc);
+      const orderedMessages = orderedAllMessages.filter(
+        message => !message.isReaction,
+      );
+      const reactionMessages = orderedAllMessages.filter(
+        message => message.isReaction,
+      );
+      if (!orderedMessages.length) return null;
+
+      const latest =
+        [...orderedMessages].sort(sortByDateDesc)[0] ||
+        [...orderedAllMessages].sort(sortByDateDesc)[0];
 
       return {
-        count: orderedMessages.length,
+        allMessages: orderedAllMessages,
+        count: Math.max(orderedMessages.length, 1),
         id,
         latest,
         messages: orderedMessages,
+        reactions: groupReactions(reactionMessages),
         starred: latest.starred,
         subject: latest.subject,
-        unread: orderedMessages.some(message => message.unread),
+        unread: orderedAllMessages.some(message => message.unread),
       };
     })
+    .filter((thread): thread is MailThread => Boolean(thread))
     .sort((left, right) => sortByDateDesc(left.latest, right.latest));
+}
+
+function groupReactions(messages: MailMessage[]): MailReaction[] {
+  const reactions = new Map<string, MailReaction>();
+
+  messages.forEach(message => {
+    const emoji = message.reactionEmoji || defaultReactionEmoji;
+    const reaction = reactions.get(emoji) || {
+      count: 0,
+      emoji,
+      from: message.reactionFrom || message.name,
+    };
+
+    reaction.count += message.reactionCount || 1;
+    reactions.set(emoji, reaction);
+  });
+
+  return [...reactions.values()];
+}
+
+function threadDeleteCopy(count: number, permanent: boolean) {
+  const noun = count === 1 ? 'message' : 'messages';
+
+  return permanent
+    ? {
+        body: `This will permanently delete ${count} ${noun}. This cannot be undone.`,
+        title: 'Delete forever?',
+      }
+    : {
+        body: `This will move ${count} ${noun} to Bin.`,
+        title: 'Move to Bin?',
+      };
+}
+
+function isLastVisibleMessage(thread: MailThread, message: MailMessage) {
+  return thread.messages[thread.messages.length - 1]?.id === message.id;
 }
 
 function cleanReplyBody(value: string) {
@@ -398,17 +482,26 @@ export default function FlowConsole({
   accessSession,
   onLock,
 }: FlowConsoleProps) {
+  const accountMenuRef = useRef<HTMLDivElement | null>(null);
+  const deleteLockRef = useRef(false);
+  const sendLockRef = useRef(false);
   const [accountOpen, setAccountOpen] = useState(false);
   const [activeFolder, setActiveFolder] = useState<MailFolder>('inbox');
   const [composeFields, setComposeFields] =
     useState<ComposeFields>(initialCompose);
   const [composeOpen, setComposeOpen] = useState(false);
   const [config, setConfig] = useState<FlowConfig>(defaultConfig);
+  const [deleteConfirm, setDeleteConfirm] = useState<DeleteConfirm | null>(
+    null,
+  );
   const [folderCounts, setFolderCounts] =
     useState<Record<MailFolder, number>>(emptyFolderCounts);
+  const [isDeleting, setIsDeleting] = useState(false);
   const [isLoadingMessages, setIsLoadingMessages] = useState(true);
+  const [isSending, setIsSending] = useState(false);
   const [messages, setMessages] = useState<MailMessage[]>([]);
   const [query, setQuery] = useState('');
+  const [recipientEmails, setRecipientEmails] = useState<string[]>([]);
   const [refreshSeq, setRefreshSeq] = useState(0);
   const [selectedIds, setSelectedIds] = useState<string[]>([]);
   const [selectedMessageId, setSelectedMessageId] = useState<string | null>(
@@ -428,7 +521,7 @@ export default function FlowConsole({
     return allThreads.filter(thread => {
       if (!cleanQuery) return true;
 
-      return thread.messages
+      return thread.allMessages
         .flatMap(message => [
           message.body,
           message.from,
@@ -456,7 +549,32 @@ export default function FlowConsole({
   const activeEmptyState = emptyStates[activeFolder];
   const accountInitial = getInitial(accessSession.keyLabel);
   const composeFrom = composeFields.from || config.defaultFrom;
+  const composeRecipients = useMemo(
+    () => [
+      ...new Set([
+        ...recipientEmails,
+        ...parseRecipients(composeFields.to),
+      ]),
+    ],
+    [composeFields.to, recipientEmails],
+  );
   const sessionExpiry = formatSessionExpiry(accessSession.expiresAt);
+
+  useEffect(() => {
+    if (!accountOpen) return;
+
+    const closeOnOutsidePress = (event: PointerEvent) => {
+      if (!(event.target instanceof Node)) return;
+      if (accountMenuRef.current?.contains(event.target)) return;
+      setAccountOpen(false);
+    };
+
+    document.addEventListener('pointerdown', closeOnOutsidePress);
+
+    return () => {
+      document.removeEventListener('pointerdown', closeOnOutsidePress);
+    };
+  }, [accountOpen]);
 
   useEffect(() => {
     let active = true;
@@ -602,7 +720,7 @@ export default function FlowConsole({
   const openMessage = (threadId: string) => {
     const thread = allThreads.find(item => item.id === threadId);
     const unreadMessageIds =
-      thread?.messages
+      thread?.allMessages
         .filter(message => message.unread)
         .map(message => message.id) || [];
 
@@ -623,7 +741,7 @@ export default function FlowConsole({
           credentials: 'include',
           headers: flowHeaders(),
           method: 'POST',
-        }),
+        }).then(response => responseJson(response)),
       ),
     ).catch(() => {
       setMessages(current =>
@@ -690,37 +808,66 @@ export default function FlowConsole({
     openMessage(messageId);
   };
 
-  const deleteSelected = async () => {
+  const requestDeleteSelected = () => {
     if (selectedIds.length === 0) return;
     const messageIds = visibleThreads
       .filter(thread => selectedIds.includes(thread.id))
-      .flatMap(thread => thread.messages.map(message => message.id));
+      .flatMap(thread => thread.allMessages.map(message => message.id));
 
     if (!messageIds.length) return;
 
+    const permanent = activeFolder === 'bin';
+    setDeleteConfirm({
+      ...threadDeleteCopy(messageIds.length, permanent),
+      messageIds,
+      permanent,
+    });
+  };
+
+  const requestDeleteOpenMessage = () => {
+    if (!selectedThread) return;
+    const messageIds = selectedThread.allMessages.map(message => message.id);
+    if (!messageIds.length) return;
+
+    const permanent = selectedThread.allMessages.every(
+      message => message.folder === 'bin',
+    );
+    setDeleteConfirm({
+      ...threadDeleteCopy(messageIds.length, permanent),
+      messageIds,
+      permanent,
+    });
+  };
+
+  const confirmDelete = async () => {
+    if (!deleteConfirm || deleteLockRef.current) return;
+
+    deleteLockRef.current = true;
+    setIsDeleting(true);
     try {
       await Promise.all(
-        messageIds.map(messageId =>
+        deleteConfirm.messageIds.map(messageId =>
           fetch(
             apiUrl(
-              activeFolder === 'bin'
+              deleteConfirm.permanent
                 ? `/flow/messages/${messageId}`
                 : `/flow/messages/${messageId}/trash`,
             ),
             {
               credentials: 'include',
               headers: flowHeaders(),
-              method: activeFolder === 'bin' ? 'DELETE' : 'POST',
+              method: deleteConfirm.permanent ? 'DELETE' : 'POST',
             },
           ).then(response => responseJson(response)),
         ),
       );
 
       setStatus(
-        activeFolder === 'bin'
+        deleteConfirm.permanent
           ? { kind: 'success', text: 'Selected conversations deleted.' }
           : { kind: 'info', text: 'Selected conversations moved to Bin.' },
       );
+      setDeleteConfirm(null);
       setSelectedIds([]);
       setSelectedMessageId(null);
       refreshMessages();
@@ -730,43 +877,9 @@ export default function FlowConsole({
         text:
           error instanceof Error ? error.message : 'Delete action failed.',
       });
-    }
-  };
-
-  const deleteOpenMessage = async () => {
-    if (!selectedThread) return;
-
-    try {
-      await Promise.all(
-        selectedThread.messages.map(message =>
-          fetch(
-            apiUrl(
-              message.folder === 'bin'
-                ? `/flow/messages/${message.id}`
-                : `/flow/messages/${message.id}/trash`,
-            ),
-            {
-              credentials: 'include',
-              headers: flowHeaders(),
-              method: message.folder === 'bin' ? 'DELETE' : 'POST',
-            },
-          ).then(response => responseJson(response)),
-        ),
-      );
-
-      setStatus(
-        selectedThread.messages.every(message => message.folder === 'bin')
-          ? { kind: 'success', text: 'Conversation deleted.' }
-          : { kind: 'info', text: 'Conversation moved to Bin.' },
-      );
-      setSelectedMessageId(null);
-      refreshMessages();
-    } catch (error) {
-      setStatus({
-        kind: 'info',
-        text:
-          error instanceof Error ? error.message : 'Delete action failed.',
-      });
+    } finally {
+      deleteLockRef.current = false;
+      setIsDeleting(false);
     }
   };
 
@@ -783,12 +896,40 @@ export default function FlowConsole({
       }));
     };
 
+  const addRecipients = () => {
+    const recipients = parseRecipients(composeFields.to);
+
+    if (!recipients.length) {
+      setStatus({
+        kind: 'info',
+        text: 'Type a valid email address before adding it.',
+      });
+      return;
+    }
+
+    setRecipientEmails(current => [...new Set([...current, ...recipients])]);
+    setComposeFields(current => ({ ...current, to: '' }));
+  };
+
+  const removeRecipient = (email: string) => {
+    setRecipientEmails(current => current.filter(item => item !== email));
+  };
+
+  const addRecipientsFromKeyboard = (
+    event: KeyboardEvent<HTMLInputElement>,
+  ) => {
+    if (event.key !== 'Enter') return;
+    event.preventDefault();
+    addRecipients();
+  };
+
   const resetCompose = () => {
     setComposeFields(initialCompose);
+    setRecipientEmails([]);
   };
 
   const hasDraftContent =
-    composeFields.to.trim() ||
+    composeRecipients.length > 0 ||
     composeFields.subject.trim() ||
     composeFields.body.trim();
 
@@ -800,7 +941,7 @@ export default function FlowConsole({
             body: composeFields.body,
             from: composeFrom,
             subject: composeFields.subject,
-            to: parseRecipients(composeFields.to),
+            to: composeRecipients,
           }),
           credentials: 'include',
           headers: { 'Content-Type': 'application/json', ...flowHeaders() },
@@ -827,13 +968,17 @@ export default function FlowConsole({
 
   const submitCompose = async (event: FormEvent<HTMLFormElement>) => {
     event.preventDefault();
-    const recipients = parseRecipients(composeFields.to);
+    if (sendLockRef.current) return;
+
+    const recipients = composeRecipients;
 
     if (!recipients.length) {
       setStatus({ kind: 'info', text: 'Enter at least one valid recipient.' });
       return;
     }
 
+    sendLockRef.current = true;
+    setIsSending(true);
     try {
       const response = await fetch(apiUrl('/flow/send'), {
         body: JSON.stringify({
@@ -872,6 +1017,9 @@ export default function FlowConsole({
         kind: 'info',
         text: error instanceof Error ? error.message : 'Send failed.',
       });
+    } finally {
+      sendLockRef.current = false;
+      setIsSending(false);
     }
   };
 
@@ -881,6 +1029,7 @@ export default function FlowConsole({
         <button
           aria-label={sidebarOpen ? 'Hide sidebar' : 'Show sidebar'}
           className={styles.iconButton}
+          data-tooltip={sidebarOpen ? 'Hide sidebar' : 'Show sidebar'}
           onClick={() => setSidebarOpen(open => !open)}
           type="button"
         >
@@ -904,6 +1053,7 @@ export default function FlowConsole({
             <button
               aria-label="Clear search"
               className={styles.searchAction}
+              data-tooltip="Clear search"
               onClick={() => setQuery('')}
               type="button"
             >
@@ -915,20 +1065,36 @@ export default function FlowConsole({
         </label>
 
         <div className={styles.headerActions} aria-label="Header actions">
-          <button aria-label="Help" className={styles.iconButton} type="button">
+          <button
+            aria-label="Help"
+            className={styles.iconButton}
+            data-tooltip="Help"
+            type="button"
+          >
             <CircleHelp size={22} />
           </button>
-          <button aria-label="Settings" className={styles.iconButton} type="button">
+          <button
+            aria-label="Settings"
+            className={styles.iconButton}
+            data-tooltip="Settings"
+            type="button"
+          >
             <Settings size={22} />
           </button>
-          <button aria-label="Apps" className={styles.iconButton} type="button">
+          <button
+            aria-label="Apps"
+            className={styles.iconButton}
+            data-tooltip="Apps"
+            type="button"
+          >
             <Grid3X3 size={22} />
           </button>
-          <div className={styles.accountWrap}>
+          <div className={styles.accountWrap} ref={accountMenuRef}>
             <button
               aria-expanded={accountOpen}
               aria-label="Account details"
               className={styles.accountButton}
+              data-tooltip="Account"
               onClick={() => setAccountOpen(open => !open)}
               type="button"
             >
@@ -1031,6 +1197,7 @@ export default function FlowConsole({
                 <button
                   aria-label="Back to message list"
                   className={styles.readerIconButton}
+                  data-tooltip="Back"
                   onClick={() => setSelectedMessageId(null)}
                   type="button"
                 >
@@ -1039,7 +1206,8 @@ export default function FlowConsole({
                 <button
                   aria-label="Delete conversation"
                   className={styles.readerIconButton}
-                  onClick={deleteOpenMessage}
+                  data-tooltip="Delete"
+                  onClick={requestDeleteOpenMessage}
                   type="button"
                 >
                   <Trash2 size={18} />
@@ -1082,6 +1250,23 @@ export default function FlowConsole({
                           <time>{formatMessageDate(message.date)}</time>
                         </div>
                         <p>{cleanReplyBody(message.body)}</p>
+                        {isLastVisibleMessage(selectedThread, message) &&
+                        selectedThread.reactions.length ? (
+                          <div
+                            className={styles.reactionRow}
+                            aria-label="Message reactions"
+                          >
+                            {selectedThread.reactions.map(reaction => (
+                              <span
+                                className={styles.reactionChip}
+                                key={`${reaction.emoji}-${reaction.from}`}
+                              >
+                                <span aria-hidden="true">{reaction.emoji}</span>
+                                <strong>{reaction.count}</strong>
+                              </span>
+                            ))}
+                          </div>
+                        ) : null}
                       </div>
                     </div>
                   </section>
@@ -1102,8 +1287,9 @@ export default function FlowConsole({
                   <button
                     aria-label="Delete selected messages"
                     className={styles.toolbarButton}
+                    data-tooltip="Delete"
                     disabled={selectedIds.length === 0}
-                    onClick={deleteSelected}
+                    onClick={requestDeleteSelected}
                     type="button"
                   >
                     <Trash2 size={19} />
@@ -1168,6 +1354,7 @@ export default function FlowConsole({
                             ? `${styles.rowStar} ${styles.rowStarActive}`
                             : styles.rowStar
                         }
+                        data-tooltip={message.starred ? 'Unstar' : 'Star'}
                         onClick={event => toggleStarred(event, message.id)}
                         type="button"
                       >
@@ -1213,6 +1400,47 @@ export default function FlowConsole({
         </section>
       </section>
 
+      {deleteConfirm ? (
+        <div
+          aria-label={deleteConfirm.title}
+          aria-modal="true"
+          className={styles.confirmOverlay}
+          role="dialog"
+        >
+          <section className={styles.confirmDialog}>
+            <h2>{deleteConfirm.title}</h2>
+            <p>{deleteConfirm.body}</p>
+            <div className={styles.confirmActions}>
+              <button
+                className={styles.cancelButton}
+                disabled={isDeleting}
+                onClick={() => setDeleteConfirm(null)}
+                type="button"
+              >
+                Cancel
+              </button>
+              <button
+                className={styles.dangerConfirmButton}
+                disabled={isDeleting}
+                onClick={confirmDelete}
+                type="button"
+              >
+                {isDeleting ? (
+                  <>
+                    <Loader2 className={styles.spin} size={16} />
+                    Deleting
+                  </>
+                ) : deleteConfirm.permanent ? (
+                  'Delete forever'
+                ) : (
+                  'Move to Bin'
+                )}
+              </button>
+            </div>
+          </section>
+        </div>
+      ) : null}
+
       {composeOpen ? (
         <div
           aria-label="Compose email"
@@ -1226,6 +1454,8 @@ export default function FlowConsole({
               <button
                 aria-label="Close compose"
                 className={styles.composeIconButton}
+                data-tooltip="Save and close"
+                disabled={isSending}
                 onClick={saveDraftAndClose}
                 type="button"
               >
@@ -1239,6 +1469,7 @@ export default function FlowConsole({
                 <select
                   aria-label="Sender"
                   className={styles.composeSelect}
+                  disabled={isSending}
                   onChange={updateComposeField('from')}
                   value={composeFrom}
                 >
@@ -1251,22 +1482,57 @@ export default function FlowConsole({
               ) : (
                 <input
                   aria-label="Sender"
+                  disabled={isSending}
                   onChange={updateComposeField('from')}
                   placeholder="Name <email@chefuinc.com>"
                   value={composeFrom}
                 />
               )}
             </label>
-            <label className={styles.composeLine}>
+            <div className={styles.composeLine}>
               <span>Recipients</span>
-              <input
-                onChange={updateComposeField('to')}
-                value={composeFields.to}
-              />
-            </label>
+              <div className={styles.recipientComposer}>
+                <div className={styles.recipientInputRow}>
+                  <input
+                    aria-label="Recipient email"
+                    disabled={isSending}
+                    onChange={updateComposeField('to')}
+                    onKeyDown={addRecipientsFromKeyboard}
+                    placeholder="name@company.com"
+                    value={composeFields.to}
+                  />
+                  <button
+                    className={styles.addRecipientButton}
+                    disabled={isSending || !composeFields.to.trim()}
+                    onClick={addRecipients}
+                    type="button"
+                  >
+                    Add
+                  </button>
+                </div>
+                {recipientEmails.length ? (
+                  <div className={styles.recipientChips}>
+                    {recipientEmails.map(email => (
+                      <button
+                        aria-label={`Remove ${email}`}
+                        className={styles.recipientChip}
+                        disabled={isSending}
+                        key={email}
+                        onClick={() => removeRecipient(email)}
+                        type="button"
+                      >
+                        <span>{email}</span>
+                        <X size={14} />
+                      </button>
+                    ))}
+                  </div>
+                ) : null}
+              </div>
+            </div>
             <label className={styles.composeLine}>
               <span>Subject</span>
               <input
+                disabled={isSending}
                 onChange={updateComposeField('subject')}
                 value={composeFields.subject}
               />
@@ -1274,17 +1540,31 @@ export default function FlowConsole({
             <textarea
               aria-label="Message body"
               className={styles.composeBody}
+              disabled={isSending}
               onChange={updateComposeField('body')}
               value={composeFields.body}
             />
 
             <div className={styles.composeFooter}>
-              <button className={styles.sendButton} type="submit">
-                Send
+              <button
+                className={styles.sendButton}
+                disabled={isSending}
+                type="submit"
+              >
+                {isSending ? (
+                  <>
+                    <Loader2 className={styles.spin} size={16} />
+                    Sending
+                  </>
+                ) : (
+                  'Send'
+                )}
               </button>
               <button
                 aria-label="Discard draft"
                 className={styles.composeIconButton}
+                data-tooltip="Discard draft"
+                disabled={isSending}
                 onClick={discardCompose}
                 type="button"
               >

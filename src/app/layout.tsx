@@ -17,6 +17,10 @@ export const metadata: Metadata = {
   title: "Flow",
   description:
     "CheFu Inc's email ecosystem.",
+  icons: {
+    icon: "/icon.svg",
+    shortcut: "/icon.svg",
+  },
 };
 
 export default function RootLayout({
