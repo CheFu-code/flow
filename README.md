@@ -20,7 +20,7 @@ RESEND_WEBHOOK_SECRET=
 FLOW_API_KEY=
 FLOW_ACCESS_SECRET=flow-local-development-secret
 FLOW_DEFAULT_FROM="Flow Mail <mail@flow.chefuinc.com>"
-FLOW_SENDERS="CheFu Inc <hello@chefuinc.com>;Flow Mail <mail@flow.chefuinc.com>;Support <support@chefuinc.com>;Security <security@chefuinc.com>"
+FLOW_SENDERS="CheFu Inc <hello@chefuinc.com>;Flow Mail <mail@flow.chefuinc.com>;Support <support@chefuinc.com>;Security <security@chefuinc.com>;Muzalo <muzalo@chefuinc.com>;CheFu Academy <academy@chefuinc.com>;CheFu Quantum <quantum@chefuinc.com>"
 FLOW_DEFAULT_REPLY_TO="reply@chefuinc.com"
 FLOW_INBOUND_ADDRESS=support@chefuinc.com
 FLOW_MAX_RECIPIENTS=100
@@ -55,7 +55,7 @@ activation screen, not a public key-creation screen.
 ## Resend Setup
 
 1. Add and verify the sending domain in Resend.
-   Use `chefuinc.com` if you want senders such as `support@chefuinc.com`, `security@chefuinc.com`, and `hello@chefuinc.com`.
+   Use `chefuinc.com` if you want senders such as `support@chefuinc.com`, `security@chefuinc.com`, `muzalo@chefuinc.com`, and `hello@chefuinc.com`.
 
 2. Add the DNS records Resend gives you.
    This usually includes SPF/DKIM-style records for sending. Wait until Resend marks the domain as verified.
@@ -83,7 +83,7 @@ activation screen, not a public key-creation screen.
 6. Set backend sender identities:
 
    ```bash
-   FLOW_SENDERS="CheFu Inc <hello@chefuinc.com>;Support <support@chefuinc.com>;Security <security@chefuinc.com>"
+   FLOW_SENDERS="CheFu Inc <hello@chefuinc.com>;Flow Mail <mail@flow.chefuinc.com>;Support <support@chefuinc.com>;Security <security@chefuinc.com>;Muzalo <muzalo@chefuinc.com>;CheFu Academy <academy@chefuinc.com>;CheFu Quantum <quantum@chefuinc.com>"
    ```
 
    Flow only allows sending from identities in this list.
