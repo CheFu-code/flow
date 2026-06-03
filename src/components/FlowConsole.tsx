@@ -45,16 +45,30 @@ type MailMessage = {
   from: string;
   html?: string;
   id: string;
+  inReplyTo?: string;
   name: string;
   preview: string;
+  references?: string[];
   starred: boolean;
   subject: string;
+  threadKey?: string;
   to: string[];
+  unread: boolean;
+};
+
+type MailThread = {
+  count: number;
+  id: string;
+  latest: MailMessage;
+  messages: MailMessage[];
+  starred: boolean;
+  subject: string;
   unread: boolean;
 };
 
 type ComposeFields = {
   body: string;
+  from: string;
   subject: string;
   to: string;
 };
@@ -87,12 +101,15 @@ type BackendMessage = {
   from: string;
   html?: string;
   id: string;
+  inReplyTo?: string;
   preview?: string;
   receivedAt?: string;
+  references?: string[];
   sentAt?: string;
   starred?: boolean;
   subject?: string;
   text?: string;
+  threadKey?: string;
   to?: string[];
   unread?: boolean;
 };
@@ -100,6 +117,11 @@ type BackendMessage = {
 type BackendMessagesResponse = {
   counts?: Partial<Record<string, number>>;
   messages?: BackendMessage[];
+};
+
+type ServerSentEvent = {
+  data: string;
+  event: string;
 };
 
 type FlowConsoleProps = {
@@ -170,6 +192,7 @@ const defaultConfig: FlowConfig = {
 
 const initialCompose: ComposeFields = {
   body: '',
+  from: '',
   subject: '',
   to: '',
 };
@@ -254,13 +277,69 @@ function toMailMessage(message: BackendMessage): MailMessage {
     from: message.from || '',
     html: message.html,
     id: message.id,
+    inReplyTo: message.inReplyTo,
     name: participantName(message),
     preview: message.preview || message.text || '',
+    references: Array.isArray(message.references) ? message.references : [],
     starred: Boolean(message.starred),
     subject: message.subject || '(no subject)',
+    threadKey: message.threadKey,
     to: Array.isArray(message.to) ? message.to : [],
     unread: Boolean(message.unread),
   };
+}
+
+function messageThreadKey(message: MailMessage) {
+  return message.threadKey || `message:${message.id}`;
+}
+
+function sortByDateAsc(left: MailMessage, right: MailMessage) {
+  return new Date(left.date).getTime() - new Date(right.date).getTime();
+}
+
+function sortByDateDesc(left: MailMessage, right: MailMessage) {
+  return new Date(right.date).getTime() - new Date(left.date).getTime();
+}
+
+function groupMessagesIntoThreads(messages: MailMessage[]): MailThread[] {
+  const groups = new Map<string, MailMessage[]>();
+
+  messages.forEach(message => {
+    const key = messageThreadKey(message);
+    groups.set(key, [...(groups.get(key) || []), message]);
+  });
+
+  return [...groups.entries()]
+    .map(([id, threadMessages]) => {
+      const orderedMessages = [...threadMessages].sort(sortByDateAsc);
+      const latest = [...threadMessages].sort(sortByDateDesc)[0];
+
+      return {
+        count: orderedMessages.length,
+        id,
+        latest,
+        messages: orderedMessages,
+        starred: latest.starred,
+        subject: latest.subject,
+        unread: orderedMessages.some(message => message.unread),
+      };
+    })
+    .sort((left, right) => sortByDateDesc(left.latest, right.latest));
+}
+
+function cleanReplyBody(value: string) {
+  const body = value.replace(/\r\n/g, '\n').trim();
+  const markers = [
+    /^\s*On .+wrote:\s*$/im,
+    /^\s*From:\s.+$/im,
+    /^\s*-{2,}\s*Original Message\s*-{2,}\s*$/im,
+  ];
+  const cutAt = markers
+    .map(pattern => body.search(pattern))
+    .filter(index => index > 0)
+    .sort((left, right) => left - right)[0];
+
+  return cutAt ? body.slice(0, cutAt).trim() || body : body;
 }
 
 function mapCounts(counts?: Partial<Record<string, number>>) {
@@ -296,6 +375,25 @@ async function responseJson<T>(response: Response): Promise<T> {
   return data;
 }
 
+function parseServerSentEvent(rawEvent: string): ServerSentEvent {
+  const eventLines = rawEvent.split('\n');
+  const data: string[] = [];
+  let event = 'message';
+
+  eventLines.forEach(line => {
+    if (line.startsWith('event:')) {
+      event = line.slice(6).trim();
+      return;
+    }
+
+    if (line.startsWith('data:')) {
+      data.push(line.slice(5).trimStart());
+    }
+  });
+
+  return { data: data.join('\n'), event };
+}
+
 export default function FlowConsole({
   accessSession,
   onLock,
@@ -319,38 +417,45 @@ export default function FlowConsole({
   const [sidebarOpen, setSidebarOpen] = useState(true);
   const [status, setStatus] = useState<StatusMessage | null>(null);
 
-  const visibleMessages = useMemo(() => {
+  const allThreads = useMemo(
+    () => groupMessagesIntoThreads(messages),
+    [messages],
+  );
+
+  const visibleThreads = useMemo(() => {
     const cleanQuery = query.trim().toLowerCase();
 
-    return messages.filter(message => {
+    return allThreads.filter(thread => {
       if (!cleanQuery) return true;
 
-      return [
-        message.body,
-        message.from,
-        message.name,
-        message.preview,
-        message.subject,
-        message.to.join(' '),
-      ]
+      return thread.messages
+        .flatMap(message => [
+          message.body,
+          message.from,
+          message.name,
+          message.preview,
+          message.subject,
+          message.to.join(' '),
+        ])
         .join(' ')
         .toLowerCase()
         .includes(cleanQuery);
     });
-  }, [messages, query]);
+  }, [allThreads, query]);
 
-  const selectedMessage = useMemo(
-    () => messages.find(message => message.id === selectedMessageId) || null,
-    [messages, selectedMessageId],
+  const selectedThread = useMemo(
+    () => allThreads.find(thread => thread.id === selectedMessageId) || null,
+    [allThreads, selectedMessageId],
   );
 
   const allVisibleSelected =
-    visibleMessages.length > 0 &&
-    visibleMessages.every(message => selectedIds.includes(message.id));
+    visibleThreads.length > 0 &&
+    visibleThreads.every(thread => selectedIds.includes(thread.id));
 
   const selectedFolderTitle = getFolderLabel(activeFolder);
   const activeEmptyState = emptyStates[activeFolder];
   const accountInitial = getInitial(accessSession.keyLabel);
+  const composeFrom = composeFields.from || config.defaultFrom;
   const sessionExpiry = formatSessionExpiry(accessSession.expiresAt);
 
   useEffect(() => {
@@ -413,6 +518,74 @@ export default function FlowConsole({
     };
   }, [activeFolder, refreshSeq]);
 
+  useEffect(() => {
+    const controller = new AbortController();
+    let stopped = false;
+    let retryTimer: ReturnType<typeof setTimeout> | null = null;
+
+    const applyMessages = (data: BackendMessagesResponse) => {
+      setMessages((data.messages || []).map(toMailMessage));
+      setFolderCounts(mapCounts(data.counts));
+      setIsLoadingMessages(false);
+    };
+
+    const handleEvent = (rawEvent: string) => {
+      const parsed = parseServerSentEvent(rawEvent.trim());
+      if (parsed.event !== 'messages' || !parsed.data) return;
+
+      try {
+        applyMessages(JSON.parse(parsed.data) as BackendMessagesResponse);
+      } catch {
+        // Ignore malformed stream frames; the normal fetch path remains active.
+      }
+    };
+
+    const connect = async () => {
+      try {
+        const response = await fetch(
+          apiUrl(`/flow/messages/stream?folder=${backendFolderFor(activeFolder)}`),
+          {
+            credentials: 'include',
+            headers: { Accept: 'text/event-stream', ...flowHeaders() },
+            signal: controller.signal,
+          },
+        );
+
+        if (!response.ok || !response.body) return;
+
+        const reader = response.body.getReader();
+        const decoder = new TextDecoder();
+        let buffer = '';
+
+        while (!stopped) {
+          const { done, value } = await reader.read();
+          if (done) break;
+
+          buffer += decoder.decode(value, { stream: true }).replace(/\r\n/g, '\n');
+          const events = buffer.split('\n\n');
+          buffer = events.pop() || '';
+          events.forEach(handleEvent);
+        }
+      } catch {
+        if (stopped || controller.signal.aborted) return;
+      }
+
+      if (!stopped) {
+        retryTimer = setTimeout(() => {
+          void connect();
+        }, 5_000);
+      }
+    };
+
+    void connect();
+
+    return () => {
+      stopped = true;
+      controller.abort();
+      if (retryTimer) clearTimeout(retryTimer);
+    };
+  }, [activeFolder]);
+
   const changeFolder = (folder: MailFolder) => {
     setIsLoadingMessages(true);
     setActiveFolder(folder);
@@ -426,28 +599,36 @@ export default function FlowConsole({
     setRefreshSeq(value => value + 1);
   };
 
-  const openMessage = (messageId: string) => {
-    const message = messages.find(item => item.id === messageId);
+  const openMessage = (threadId: string) => {
+    const thread = allThreads.find(item => item.id === threadId);
+    const unreadMessageIds =
+      thread?.messages
+        .filter(message => message.unread)
+        .map(message => message.id) || [];
 
-    setSelectedMessageId(messageId);
+    setSelectedMessageId(threadId);
     setSelectedIds([]);
 
-    if (!message?.unread) return;
+    if (!unreadMessageIds.length) return;
 
     setMessages(current =>
       current.map(item =>
-        item.id === messageId ? { ...item, unread: false } : item,
+        unreadMessageIds.includes(item.id) ? { ...item, unread: false } : item,
       ),
     );
 
-    fetch(apiUrl(`/flow/messages/${messageId}/read`), {
-      credentials: 'include',
-      headers: flowHeaders(),
-      method: 'POST',
-    }).catch(() => {
+    Promise.all(
+      unreadMessageIds.map(messageId =>
+        fetch(apiUrl(`/flow/messages/${messageId}/read`), {
+          credentials: 'include',
+          headers: flowHeaders(),
+          method: 'POST',
+        }),
+      ),
+    ).catch(() => {
       setMessages(current =>
         current.map(item =>
-          item.id === messageId ? { ...item, unread: true } : item,
+          unreadMessageIds.includes(item.id) ? { ...item, unread: true } : item,
         ),
       );
     });
@@ -462,7 +643,7 @@ export default function FlowConsole({
   };
 
   const toggleAllSelected = (event: ChangeEvent<HTMLInputElement>) => {
-    setSelectedIds(event.target.checked ? visibleMessages.map(item => item.id) : []);
+    setSelectedIds(event.target.checked ? visibleThreads.map(item => item.id) : []);
   };
 
   const toggleStarred = (event: MouseEvent, messageId: string) => {
@@ -511,10 +692,15 @@ export default function FlowConsole({
 
   const deleteSelected = async () => {
     if (selectedIds.length === 0) return;
+    const messageIds = visibleThreads
+      .filter(thread => selectedIds.includes(thread.id))
+      .flatMap(thread => thread.messages.map(message => message.id));
+
+    if (!messageIds.length) return;
 
     try {
       await Promise.all(
-        selectedIds.map(messageId =>
+        messageIds.map(messageId =>
           fetch(
             apiUrl(
               activeFolder === 'bin'
@@ -548,24 +734,28 @@ export default function FlowConsole({
   };
 
   const deleteOpenMessage = async () => {
-    if (!selectedMessage) return;
+    if (!selectedThread) return;
 
     try {
-      await fetch(
-        apiUrl(
-          selectedMessage.folder === 'bin'
-            ? `/flow/messages/${selectedMessage.id}`
-            : `/flow/messages/${selectedMessage.id}/trash`,
+      await Promise.all(
+        selectedThread.messages.map(message =>
+          fetch(
+            apiUrl(
+              message.folder === 'bin'
+                ? `/flow/messages/${message.id}`
+                : `/flow/messages/${message.id}/trash`,
+            ),
+            {
+              credentials: 'include',
+              headers: flowHeaders(),
+              method: message.folder === 'bin' ? 'DELETE' : 'POST',
+            },
+          ).then(response => responseJson(response)),
         ),
-        {
-          credentials: 'include',
-          headers: flowHeaders(),
-          method: selectedMessage.folder === 'bin' ? 'DELETE' : 'POST',
-        },
-      ).then(response => responseJson(response));
+      );
 
       setStatus(
-        selectedMessage.folder === 'bin'
+        selectedThread.messages.every(message => message.folder === 'bin')
           ? { kind: 'success', text: 'Conversation deleted.' }
           : { kind: 'info', text: 'Conversation moved to Bin.' },
       );
@@ -582,7 +772,11 @@ export default function FlowConsole({
 
   const updateComposeField =
     (field: keyof ComposeFields) =>
-    (event: ChangeEvent<HTMLInputElement | HTMLTextAreaElement>) => {
+    (
+      event: ChangeEvent<
+        HTMLInputElement | HTMLSelectElement | HTMLTextAreaElement
+      >,
+    ) => {
       setComposeFields(current => ({
         ...current,
         [field]: event.target.value,
@@ -604,7 +798,7 @@ export default function FlowConsole({
         await fetch(apiUrl('/flow/drafts'), {
           body: JSON.stringify({
             body: composeFields.body,
-            from: config.defaultFrom,
+            from: composeFrom,
             subject: composeFields.subject,
             to: parseRecipients(composeFields.to),
           }),
@@ -644,7 +838,7 @@ export default function FlowConsole({
       const response = await fetch(apiUrl('/flow/send'), {
         body: JSON.stringify({
           action: 'campaign',
-          from: config.defaultFrom,
+          from: composeFrom,
           html: composeFields.body,
           recipients: recipients.map(email => ({
             email,
@@ -831,7 +1025,7 @@ export default function FlowConsole({
         ) : null}
 
         <section className={styles.contentPane}>
-          {selectedMessage ? (
+          {selectedThread ? (
             <article className={styles.reader}>
               <div className={styles.readerToolbar}>
                 <button
@@ -853,39 +1047,49 @@ export default function FlowConsole({
               </div>
 
               <h1 className={styles.readerSubject}>
-                {selectedMessage.subject}
-                <span>{getMessageFolderLabel(selectedMessage.folder)}</span>
+                {selectedThread.subject}
+                <span>
+                  {selectedThread.count > 1
+                    ? `${selectedThread.count} messages`
+                    : getMessageFolderLabel(selectedThread.latest.folder)}
+                </span>
               </h1>
 
-              <div className={styles.readerBody}>
-                <div className={styles.readerAvatar}>
-                  {selectedMessage.name.charAt(0).toUpperCase()}
-                </div>
-                <div className={styles.readerContent}>
-                  <div className={styles.readerMeta}>
-                    <div>
-                      <strong>
-                        {selectedMessage.folder === 'sent'
-                          ? selectedMessage.to[0]?.split('@')[0] || 'recipient'
-                          : selectedMessage.name}
-                      </strong>
-                      <span>
-                        {' '}
-                        &lt;
-                        {selectedMessage.folder === 'sent'
-                          ? selectedMessage.to.join(', ')
-                          : selectedMessage.from}
-                        &gt;
-                      </span>
+              <div className={styles.readerThread}>
+                {selectedThread.messages.map(message => (
+                  <section className={styles.readerMessage} key={message.id}>
+                    <div className={styles.readerBody}>
+                      <div className={styles.readerAvatar}>
+                        {message.name.charAt(0).toUpperCase()}
+                      </div>
+                      <div className={styles.readerContent}>
+                        <div className={styles.readerMeta}>
+                          <div>
+                            <strong>
+                              {message.folder === 'sent'
+                                ? message.to[0]?.split('@')[0] || 'recipient'
+                                : message.name}
+                            </strong>
+                            <span>
+                              {' '}
+                              &lt;
+                              {message.folder === 'sent'
+                                ? message.to.join(', ')
+                                : message.from}
+                              &gt;
+                            </span>
+                          </div>
+                          <time>{formatMessageDate(message.date)}</time>
+                        </div>
+                        <p>{cleanReplyBody(message.body)}</p>
+                      </div>
                     </div>
-                    <time>{formatMessageDate(selectedMessage.date)}</time>
-                  </div>
-                  <p>{selectedMessage.body}</p>
-                </div>
+                  </section>
+                ))}
               </div>
             </article>
           ) : (
-            <>
+            <div className={styles.listPane}>
               <div className={styles.listToolbar}>
                 <div className={styles.listTools}>
                   <input
@@ -908,7 +1112,7 @@ export default function FlowConsole({
                 <div className={styles.folderSummary}>
                   <strong>{selectedFolderTitle}</strong>
                   <span>
-                    {visibleMessages.length} of {folderCounts[activeFolder]} shown
+                    {visibleThreads.length} of {allThreads.length} shown
                   </span>
                 </div>
               </div>
@@ -928,25 +1132,28 @@ export default function FlowConsole({
               <div className={styles.messageList}>
                 {isLoadingMessages ? (
                   <div className={styles.loadingState}>Loading mail...</div>
-                ) : visibleMessages.length ? (
-                  visibleMessages.map(message => (
+                ) : visibleThreads.length ? (
+                  visibleThreads.map(thread => {
+                    const message = thread.latest;
+
+                    return (
                     <div
                       className={
-                        message.unread
+                        thread.unread
                           ? `${styles.messageRow} ${styles.messageUnread}`
                           : styles.messageRow
                       }
-                      key={message.id}
-                      onClick={() => openMessage(message.id)}
-                      onKeyDown={event => openMessageFromKeyboard(event, message.id)}
+                      key={thread.id}
+                      onClick={() => openMessage(thread.id)}
+                      onKeyDown={event => openMessageFromKeyboard(event, thread.id)}
                       role="button"
                       tabIndex={0}
                     >
                       <input
-                        aria-label={`Select ${message.subject}`}
-                        checked={selectedIds.includes(message.id)}
+                        aria-label={`Select ${thread.subject}`}
+                        checked={selectedIds.includes(thread.id)}
                         className={styles.checkbox}
-                        onChange={() => toggleSelected(message.id)}
+                        onChange={() => toggleSelected(thread.id)}
                         onClick={event => event.stopPropagation()}
                         type="checkbox"
                       />
@@ -975,14 +1182,20 @@ export default function FlowConsole({
                           : message.name}
                       </span>
                       <span className={styles.preview}>
-                        <span>{message.subject}</span>
+                        <span>{thread.subject}</span>
                         {message.preview || message.body ? (
                           <em>- {message.preview || message.body}</em>
+                        ) : null}
+                        {thread.count > 1 ? (
+                          <strong className={styles.threadCount}>
+                            {thread.count}
+                          </strong>
                         ) : null}
                       </span>
                       <time>{formatListDate(message.date)}</time>
                     </div>
-                  ))
+                    );
+                  })
                 ) : (
                   <div className={styles.emptyState}>
                     <div className={styles.emptyIcon}>
@@ -995,7 +1208,7 @@ export default function FlowConsole({
                   </div>
                 )}
               </div>
-            </>
+            </div>
           )}
         </section>
       </section>
@@ -1020,6 +1233,30 @@ export default function FlowConsole({
               </button>
             </div>
 
+            <label className={styles.composeLine}>
+              <span>From</span>
+              {config.senders?.length ? (
+                <select
+                  aria-label="Sender"
+                  className={styles.composeSelect}
+                  onChange={updateComposeField('from')}
+                  value={composeFrom}
+                >
+                  {config.senders.map(sender => (
+                    <option key={sender.email} value={sender.email}>
+                      {sender.label}
+                    </option>
+                  ))}
+                </select>
+              ) : (
+                <input
+                  aria-label="Sender"
+                  onChange={updateComposeField('from')}
+                  placeholder="Name <email@chefuinc.com>"
+                  value={composeFrom}
+                />
+              )}
+            </label>
             <label className={styles.composeLine}>
               <span>Recipients</span>
               <input
