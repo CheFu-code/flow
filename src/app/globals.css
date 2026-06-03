@@ -3,8 +3,5 @@
 @import "tw-animate-css";
 @import "shadcn/tailwind.css";
 @import "./styles/base.css";
-@import "./styles/module-theme.css";
-@import "./styles/flow-workbench.css";
-@import "./styles/mail-console.css";
 
 @custom-variant dark (&:is(.dark *));

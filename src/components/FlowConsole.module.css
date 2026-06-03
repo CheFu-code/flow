@@ -1026,14 +1026,79 @@
   font-size: 12px;
 }
 
-.readerContent p {
+.readerHtml {
   max-width: 900px;
   margin: 20px 0 0;
   color: #202124;
   font-size: 14px;
   line-height: 1.7;
   overflow-wrap: anywhere;
-  white-space: pre-line;
+}
+
+.readerHtml :where(p, div, blockquote, ul, ol, table, pre) {
+  max-width: 100%;
+}
+
+.readerHtml :where(p, ul, ol, blockquote, pre, table) {
+  margin: 0 0 14px;
+}
+
+.readerHtml :where(ul, ol) {
+  padding-left: 24px;
+}
+
+.readerHtml :where(li) {
+  margin: 4px 0;
+}
+
+.readerHtml :where(a) {
+  color: #0f766e;
+  font-weight: 600;
+  text-decoration: underline;
+  text-underline-offset: 2px;
+}
+
+.readerHtml :where(blockquote) {
+  border-left: 3px solid #d7e4e2;
+  color: #5f6368;
+  padding-left: 12px;
+}
+
+.readerHtml :where(pre, code) {
+  border-radius: 6px;
+  background: #f3f4f6;
+  font-family:
+    "Cascadia Code",
+    Consolas,
+    monospace;
+}
+
+.readerHtml :where(pre) {
+  overflow-x: auto;
+  padding: 12px;
+  white-space: pre-wrap;
+}
+
+.readerHtml :where(code) {
+  padding: 2px 4px;
+}
+
+.readerHtml :where(img) {
+  max-width: 100%;
+  height: auto;
+  border-radius: 6px;
+}
+
+.readerHtml :where(table) {
+  border-collapse: collapse;
+  display: block;
+  overflow-x: auto;
+}
+
+.readerHtml :where(td, th) {
+  border: 1px solid #e5e7eb;
+  padding: 8px;
+  vertical-align: top;
 }
 
 .reactionRow {

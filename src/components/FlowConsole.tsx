@@ -4,7 +4,6 @@ import {
   AtSign,
   ArrowLeft,
   Bold,
-  CalendarDays,
   CaseSensitive,
   ChevronDown,
   CircleHelp,
@@ -14,7 +13,6 @@ import {
   Grid3X3,
   Image as ImageIcon,
   Italic,
-  Inbox,
   KeyRound,
   Link2,
   List,
@@ -27,7 +25,6 @@ import {
   Mail,
   Maximize2,
   Menu,
-  MessageSquare,
   Minimize2,
   Minus,
   Palette,
@@ -38,7 +35,6 @@ import {
   Redo2,
   RemoveFormatting,
   Search,
-  Send,
   Settings,
   SlidersHorizontal,
   Smile,
@@ -51,8 +47,6 @@ import {
   Underline,
   Undo2,
   UserCircle,
-  UserPlus,
-  Video,
   X,
 } from 'lucide-react';
 import type {
@@ -64,636 +58,61 @@ import type {
 } from 'react';
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { FlowMark } from '@/components/brand/FlowMark';
+import { ContactHoverCard } from '@/components/flow-console/ContactHoverCard';
 import { apiUrl, flowHeaders } from '@/lib/api';
+import {
+  composeEmojis,
+  defaultConfig,
+  emptyFolderCounts,
+  emptyStates,
+  folderItems,
+  fontFamilies,
+  fontSizes,
+  initialCompose,
+  maxAttachmentBytes,
+} from '@/lib/flow-console/constants';
+import {
+  escapeEditorHtml,
+  fileToComposeAttachment,
+  normalizeUrl,
+  parseRecipients,
+} from '@/lib/flow-console/compose';
+import {
+  formatFileSize,
+  formatListDate,
+  formatMessageDate,
+  formatSessionExpiry,
+  getFolderLabel,
+  getInitial,
+  getMessageFolderLabel,
+  sentTrackingKind,
+  sentTrackingLabel,
+} from '@/lib/flow-console/format';
+import { responseJson } from '@/lib/flow-console/http';
+import {
+  backendFolderFor,
+  contactFromMessage,
+  groupMessagesIntoThreads,
+  isLastVisibleMessage,
+  mapCounts,
+  threadDeleteCopy,
+  toMailMessage,
+} from '@/lib/flow-console/mail';
+import { renderReaderMessageHtml } from '@/lib/flow-console/reader';
+import { parseServerSentEvent } from '@/lib/flow-console/sse';
+import type {
+  BackendMessagesResponse,
+  ComposeAttachment,
+  ComposeFields,
+  ContactPreview,
+  DeleteConfirm,
+  FlowConfig,
+  FlowConsoleProps,
+  MailFolder,
+  MailMessage,
+  StatusMessage,
+} from '@/lib/flow-console/types';
 import styles from './FlowConsole.module.css';
-
-type MailFolder = 'inbox' | 'starred' | 'sent' | 'drafts' | 'bin' | 'allmail';
-
-type MessageFolder =
-  | MailFolder
-  | 'archived'
-  | 'campaigns'
-  | 'scheduled'
-  | 'trash';
-
-type MailMessage = {
-  attachments: number;
-  body: string;
-  clickedAt?: string;
-  clickCount?: number;
-  date: string;
-  deliveredAt?: string;
-  deliveryStatus?: string;
-  direction: 'inbound' | 'outbound';
-  firstOpenedAt?: string;
-  folder: MessageFolder;
-  from: string;
-  html?: string;
-  id: string;
-  inReplyTo?: string;
-  isReaction?: boolean;
-  name: string;
-  openCount?: number;
-  openedAt?: string;
-  preview: string;
-  reactionCount?: number;
-  reactionEmoji?: string;
-  reactionFrom?: string;
-  references?: string[];
-  starred: boolean;
-  subject: string;
-  threadKey?: string;
-  to: string[];
-  unread: boolean;
-};
-
-type MailThread = {
-  allMessages: MailMessage[];
-  count: number;
-  id: string;
-  latest: MailMessage;
-  messages: MailMessage[];
-  reactions: MailReaction[];
-  starred: boolean;
-  subject: string;
-  unread: boolean;
-};
-
-type MailReaction = {
-  count: number;
-  emoji: string;
-  from: string;
-};
-
-type ComposeFields = {
-  body: string;
-  from: string;
-  subject: string;
-  to: string;
-};
-
-type ComposeAttachment = {
-  content: string;
-  contentId?: string;
-  contentType?: string;
-  filename: string;
-  id: string;
-  inline?: boolean;
-  size: number;
-};
-
-type ContactPreview = {
-  email: string;
-  name: string;
-};
-
-type StatusMessage = {
-  kind: 'info' | 'success';
-  text: string;
-};
-
-type AccessSession = {
-  expiresAt: string;
-  keyLabel: string;
-};
-
-type FlowConfig = {
-  defaultFrom: string;
-  defaultReplyTo: string;
-  inboundAddress?: string;
-  inboundConfigured?: boolean;
-  maxRecipients: number;
-  resendConfigured: boolean;
-  senders?: Array<{ email: string; label: string }>;
-};
-
-type BackendMessage = {
-  attachments?: number;
-  clickedAt?: string;
-  clickCount?: number;
-  createdAt?: string;
-  deliveredAt?: string;
-  deliveryStatus?: string;
-  direction: 'inbound' | 'outbound';
-  firstOpenedAt?: string;
-  folder: string;
-  from: string;
-  html?: string;
-  id: string;
-  inReplyTo?: string;
-  isReaction?: boolean;
-  openCount?: number;
-  openedAt?: string;
-  preview?: string;
-  reactionCount?: number;
-  reactionEmoji?: string;
-  reactionFrom?: string;
-  receivedAt?: string;
-  references?: string[];
-  sentAt?: string;
-  starred?: boolean;
-  subject?: string;
-  text?: string;
-  threadKey?: string;
-  to?: string[];
-  unread?: boolean;
-};
-
-type BackendMessagesResponse = {
-  counts?: Partial<Record<string, number>>;
-  messages?: BackendMessage[];
-};
-
-type ServerSentEvent = {
-  data: string;
-  event: string;
-};
-
-type DeleteConfirm = {
-  body: string;
-  messageIds: string[];
-  permanent: boolean;
-  title: string;
-};
-
-type FlowConsoleProps = {
-  accessSession: AccessSession;
-  onLock: () => Promise<void>;
-};
-
-const folderItems: Array<{
-  folder: MailFolder;
-  icon: typeof Inbox;
-  title: string;
-}> = [
-  { folder: 'inbox', icon: Inbox, title: 'Inbox' },
-  { folder: 'starred', icon: Star, title: 'Starred' },
-  { folder: 'sent', icon: Send, title: 'Sent' },
-  { folder: 'drafts', icon: FileText, title: 'Drafts' },
-  { folder: 'bin', icon: Trash2, title: 'Bin' },
-  { folder: 'allmail', icon: Mail, title: 'All Mail' },
-];
-
-const emptyStates: Record<MailFolder, { heading: string; subHeading: string }> = {
-  allmail: {
-    heading: 'No mail yet',
-    subHeading: 'Messages across folders will appear here.',
-  },
-  bin: {
-    heading: 'No conversations in Bin.',
-    subHeading: '',
-  },
-  drafts: {
-    heading: "You don't have any saved drafts.",
-    subHeading:
-      "Saving a draft allows you to keep a message you aren't ready to send yet.",
-  },
-  inbox: {
-    heading: 'Your inbox is empty',
-    subHeading: "Mails that don't appear in other tabs will be shown here.",
-  },
-  sent: {
-    heading: 'No sent messages!',
-    subHeading: 'Send one now!',
-  },
-  starred: {
-    heading: 'No starred messages',
-    subHeading:
-      'Stars let you give messages a special status to make them easier to find.',
-  },
-};
-
-const emptyFolderCounts: Record<MailFolder, number> = {
-  allmail: 0,
-  bin: 0,
-  drafts: 0,
-  inbox: 0,
-  sent: 0,
-  starred: 0,
-};
-
-const defaultConfig: FlowConfig = {
-  defaultFrom: 'Flow Mail <mail@flow.chefuinc.com>',
-  defaultReplyTo: '',
-  inboundAddress: '',
-  inboundConfigured: false,
-  maxRecipients: 100,
-  resendConfigured: false,
-  senders: [],
-};
-
-const initialCompose: ComposeFields = {
-  body: '',
-  from: '',
-  subject: '',
-  to: '',
-};
-
-const defaultReactionEmoji = '\u{1F44D}';
-const maxAttachmentBytes = 24 * 1024 * 1024;
-const composeEmojis = ['😀', '😂', '😊', '🙏', '👍', '🎉', '🚀', '❤️'];
-
-const fontFamilies = [
-  'Sans Serif',
-  'Serif',
-  'Monospace',
-  'Arial',
-  'Georgia',
-  'Tahoma',
-  'Verdana',
-];
-
-const fontSizes = [
-  { label: 'Small', value: '2' },
-  { label: 'Normal', value: '3' },
-  { label: 'Large', value: '4' },
-  { label: 'Huge', value: '5' },
-];
-
-function escapeEditorHtml(value: string) {
-  return value.replace(/[&<>"']/g, char => {
-    const map: Record<string, string> = {
-      '&': '&amp;',
-      '<': '&lt;',
-      '>': '&gt;',
-      '"': '&quot;',
-      "'": '&#039;',
-    };
-
-    return map[char];
-  });
-}
-
-function formatFileSize(value: number) {
-  if (value < 1024 * 1024) return `${Math.max(1, Math.round(value / 1024))} KB`;
-  return `${(value / 1024 / 1024).toFixed(1)} MB`;
-}
-
-function newComposeId(prefix: string) {
-  return typeof crypto !== 'undefined' && 'randomUUID' in crypto
-    ? `${prefix}-${crypto.randomUUID()}`
-    : `${prefix}-${Date.now()}-${Math.random().toString(36).slice(2)}`;
-}
-
-function normalizeUrl(value: string) {
-  const trimmed = value.trim();
-  if (!trimmed) return '';
-  if (/^(https?:|mailto:|tel:)/i.test(trimmed)) return trimmed;
-  return `https://${trimmed}`;
-}
-
-function fileToComposeAttachment(file: File, inline = false) {
-  return new Promise<ComposeAttachment>((resolve, reject) => {
-    const reader = new FileReader();
-
-    reader.onerror = () => reject(new Error(`${file.name} could not be read.`));
-    reader.onload = () => {
-      const result = String(reader.result || '');
-      const content = result.includes(',') ? result.split(',')[1] : result;
-      const id = newComposeId('attachment');
-
-      resolve({
-        content,
-        contentId: inline ? newComposeId('flow-inline').slice(0, 120) : undefined,
-        contentType: file.type || undefined,
-        filename: file.name || 'attachment',
-        id,
-        inline,
-        size: file.size,
-      });
-    };
-
-    reader.readAsDataURL(file);
-  });
-}
-
-function formatListDate(value: string) {
-  return new Intl.DateTimeFormat('en', {
-    day: 'numeric',
-    month: 'long',
-  }).format(new Date(value));
-}
-
-function formatMessageDate(value: string) {
-  return new Intl.DateTimeFormat('en', {
-    day: 'numeric',
-    month: 'long',
-    year: 'numeric',
-  }).format(new Date(value));
-}
-
-function formatTrackingDate(value: string) {
-  return new Intl.DateTimeFormat('en', {
-    day: 'numeric',
-    hour: '2-digit',
-    minute: '2-digit',
-    month: 'short',
-  }).format(new Date(value));
-}
-
-function formatSessionExpiry(value: string) {
-  return new Intl.DateTimeFormat('en', {
-    day: 'numeric',
-    hour: '2-digit',
-    minute: '2-digit',
-    month: 'short',
-  }).format(new Date(value));
-}
-
-function getFolderLabel(folder: MailFolder) {
-  return folderItems.find(item => item.folder === folder)?.title || 'Inbox';
-}
-
-function getMessageFolderLabel(folder: MessageFolder) {
-  if (folder === 'trash') return 'Bin';
-  if (folder === 'archived') return 'Archived';
-  if (folder === 'campaigns') return 'Campaigns';
-  if (folder === 'scheduled') return 'Scheduled';
-  return getFolderLabel(folder);
-}
-
-function getInitial(value: string) {
-  return value.trim().charAt(0).toUpperCase() || 'F';
-}
-
-function addressEmail(value: string) {
-  const match = value.match(/<([^>]+)>/);
-  return (match?.[1] || value).trim();
-}
-
-function contactFromMessage(message: MailMessage): ContactPreview {
-  if (message.folder === 'sent') {
-    const email = message.to[0] || '';
-
-    return {
-      email,
-      name: email.split('@')[0] || 'recipient',
-    };
-  }
-
-  return {
-    email: addressEmail(message.from),
-    name: message.name || addressEmail(message.from).split('@')[0] || 'Sender',
-  };
-}
-
-function sentTrackingLabel(message: MailMessage, compact = false) {
-  if (message.direction !== 'outbound') return '';
-
-  if (message.openedAt) {
-    const count = message.openCount || 1;
-    return compact
-      ? `Opened${count > 1 ? ` ${count}x` : ''}`
-      : `Opened ${count > 1 ? `${count} times, last ` : ''}${formatTrackingDate(
-          message.openedAt,
-        )}`;
-  }
-
-  if (message.clickedAt) {
-    return compact
-      ? 'Clicked'
-      : `Clicked ${formatTrackingDate(message.clickedAt)}`;
-  }
-
-  if (message.deliveredAt) {
-    return compact
-      ? 'Delivered'
-      : `Delivered ${formatTrackingDate(message.deliveredAt)}`;
-  }
-
-  if (['bounced', 'complained', 'delayed', 'failed'].includes(message.deliveryStatus || '')) {
-    const label = message.deliveryStatus || '';
-    return label.charAt(0).toUpperCase() + label.slice(1);
-  }
-
-  return 'Not opened yet';
-}
-
-function sentTrackingKind(message: MailMessage) {
-  if (message.openedAt || message.clickedAt) return 'open';
-  if (message.deliveredAt) return 'delivered';
-  if (['bounced', 'complained', 'delayed', 'failed'].includes(message.deliveryStatus || '')) {
-    return 'warning';
-  }
-  return 'pending';
-}
-
-function backendFolderFor(folder: MailFolder) {
-  if (folder === 'bin') return 'trash';
-  return folder;
-}
-
-function uiFolderFor(folder: string): MessageFolder {
-  if (folder === 'trash') return 'bin';
-  if (
-    ['inbox', 'sent', 'drafts', 'starred', 'allmail'].includes(folder)
-  ) {
-    return folder as MailFolder;
-  }
-  if (['archived', 'campaigns', 'scheduled'].includes(folder)) {
-    return folder as MessageFolder;
-  }
-  return 'inbox';
-}
-
-function participantName(message: BackendMessage) {
-  if (message.direction === 'outbound') return 'Flow Mail';
-  const address = message.from || '';
-  const match = address.match(/^(.+?)\s*<(.+?)>$/);
-  if (match?.[1]) return match[1].replace(/^"|"$/g, '').trim();
-  return address.split('@')[0] || 'Sender';
-}
-
-function toMailMessage(message: BackendMessage): MailMessage {
-  return {
-    attachments: Number(message.attachments) || 0,
-    body: message.text || message.preview || '',
-    clickedAt: message.clickedAt,
-    clickCount: Number(message.clickCount) || 0,
-    date:
-      message.sentAt ||
-      message.receivedAt ||
-      message.createdAt ||
-      new Date().toISOString(),
-    deliveredAt: message.deliveredAt,
-    deliveryStatus: message.deliveryStatus,
-    direction: message.direction === 'outbound' ? 'outbound' : 'inbound',
-    firstOpenedAt: message.firstOpenedAt,
-    folder: uiFolderFor(message.folder),
-    from: message.from || '',
-    html: message.html,
-    id: message.id,
-    inReplyTo: message.inReplyTo,
-    isReaction: Boolean(message.isReaction),
-    name: participantName(message),
-    openCount: Number(message.openCount) || 0,
-    openedAt: message.openedAt,
-    preview: message.preview || message.text || '',
-    reactionCount: Number(message.reactionCount) || undefined,
-    reactionEmoji: message.reactionEmoji,
-    reactionFrom: message.reactionFrom,
-    references: Array.isArray(message.references) ? message.references : [],
-    starred: Boolean(message.starred),
-    subject: message.subject || '(no subject)',
-    threadKey: message.threadKey,
-    to: Array.isArray(message.to) ? message.to : [],
-    unread: Boolean(message.unread),
-  };
-}
-
-function messageThreadKey(message: MailMessage) {
-  return message.threadKey || `message:${message.id}`;
-}
-
-function sortByDateAsc(left: MailMessage, right: MailMessage) {
-  return new Date(left.date).getTime() - new Date(right.date).getTime();
-}
-
-function sortByDateDesc(left: MailMessage, right: MailMessage) {
-  return new Date(right.date).getTime() - new Date(left.date).getTime();
-}
-
-function groupMessagesIntoThreads(messages: MailMessage[]): MailThread[] {
-  const groups = new Map<string, MailMessage[]>();
-
-  messages.forEach(message => {
-    const key = messageThreadKey(message);
-    groups.set(key, [...(groups.get(key) || []), message]);
-  });
-
-  return [...groups.entries()]
-    .map(([id, threadMessages]) => {
-      const orderedAllMessages = [...threadMessages].sort(sortByDateAsc);
-      const orderedMessages = orderedAllMessages.filter(
-        message => !message.isReaction,
-      );
-      const reactionMessages = orderedAllMessages.filter(
-        message => message.isReaction,
-      );
-      if (!orderedMessages.length) return null;
-
-      const latest =
-        [...orderedMessages].sort(sortByDateDesc)[0] ||
-        [...orderedAllMessages].sort(sortByDateDesc)[0];
-
-      return {
-        allMessages: orderedAllMessages,
-        count: Math.max(orderedMessages.length, 1),
-        id,
-        latest,
-        messages: orderedMessages,
-        reactions: groupReactions(reactionMessages),
-        starred: latest.starred,
-        subject: latest.subject,
-        unread: orderedAllMessages.some(message => message.unread),
-      };
-    })
-    .filter((thread): thread is MailThread => Boolean(thread))
-    .sort((left, right) => sortByDateDesc(left.latest, right.latest));
-}
-
-function groupReactions(messages: MailMessage[]): MailReaction[] {
-  const reactions = new Map<string, MailReaction>();
-
-  messages.forEach(message => {
-    const emoji = message.reactionEmoji || defaultReactionEmoji;
-    const reaction = reactions.get(emoji) || {
-      count: 0,
-      emoji,
-      from: message.reactionFrom || message.name,
-    };
-
-    reaction.count += message.reactionCount || 1;
-    reactions.set(emoji, reaction);
-  });
-
-  return [...reactions.values()];
-}
-
-function threadDeleteCopy(count: number, permanent: boolean) {
-  const noun = count === 1 ? 'message' : 'messages';
-
-  return permanent
-    ? {
-        body: `This will permanently delete ${count} ${noun}. This cannot be undone.`,
-        title: 'Delete forever?',
-      }
-    : {
-        body: `This will move ${count} ${noun} to Bin.`,
-        title: 'Move to Bin?',
-      };
-}
-
-function isLastVisibleMessage(thread: MailThread, message: MailMessage) {
-  return thread.messages[thread.messages.length - 1]?.id === message.id;
-}
-
-function cleanReplyBody(value: string) {
-  const body = value.replace(/\r\n/g, '\n').trim();
-  const markers = [
-    /^\s*On .+wrote:\s*$/im,
-    /^\s*From:\s.+$/im,
-    /^\s*-{2,}\s*Original Message\s*-{2,}\s*$/im,
-  ];
-  const cutAt = markers
-    .map(pattern => body.search(pattern))
-    .filter(index => index > 0)
-    .sort((left, right) => left - right)[0];
-
-  return cutAt ? body.slice(0, cutAt).trim() || body : body;
-}
-
-function mapCounts(counts?: Partial<Record<string, number>>) {
-  return {
-    allmail: Number(counts?.allmail) || 0,
-    bin: Number(counts?.trash || counts?.bin) || 0,
-    drafts: Number(counts?.drafts) || 0,
-    inbox: Number(counts?.inbox) || 0,
-    sent: Number(counts?.sent) || 0,
-    starred: Number(counts?.starred) || 0,
-  };
-}
-
-function parseRecipients(value: string) {
-  return [...new Set(
-    value
-      .split(/[,\s;]+/)
-      .map(item => item.trim())
-      .filter(item => /^\S+@\S+\.\S+$/.test(item)),
-  )];
-}
-
-async function responseJson<T>(response: Response): Promise<T> {
-  const data = (await response.json().catch(() => ({}))) as T & {
-    error?: string;
-    message?: string;
-  };
-
-  if (!response.ok) {
-    throw new Error(data.error || data.message || 'Flow request failed.');
-  }
-
-  return data;
-}
-
-function parseServerSentEvent(rawEvent: string): ServerSentEvent {
-  const eventLines = rawEvent.split('\n');
-  const data: string[] = [];
-  let event = 'message';
-
-  eventLines.forEach(line => {
-    if (line.startsWith('event:')) {
-      event = line.slice(6).trim();
-      return;
-    }
-
-    if (line.startsWith('data:')) {
-      data.push(line.slice(5).trimStart());
-    }
-  });
-
-  return { data: data.join('\n'), event };
-}
 
 export default function FlowConsole({
   accessSession,
@@ -1441,81 +860,6 @@ export default function FlowConsole({
     });
   };
 
-  const renderContactCard = (contact: ContactPreview) => (
-    <span className={styles.contactCard} role="dialog">
-      <span className={styles.contactCardTop}>
-        <span className={styles.contactAvatar} aria-hidden="true">
-          {getInitial(contact.name || contact.email)}
-        </span>
-        <span className={styles.contactIdentity}>
-          <strong>{contact.name}</strong>
-          <span>{contact.email}</span>
-        </span>
-        <button
-          aria-label={`Add ${contact.name} to contacts`}
-          className={styles.contactIconButton}
-          data-tooltip="Add contact"
-          onClick={event => {
-            event.stopPropagation();
-            showContactToolStatus('Contact card', contact);
-          }}
-          type="button"
-        >
-          <UserPlus size={18} />
-        </button>
-      </span>
-      <span className={styles.contactActions}>
-        <button
-          className={styles.contactMailButton}
-          onClick={event => {
-            event.stopPropagation();
-            openComposeToContact(contact);
-          }}
-          type="button"
-        >
-          <Mail size={18} />
-          Send Mail
-        </button>
-        <button
-          aria-label={`Chat with ${contact.name}`}
-          className={styles.contactIconButton}
-          data-tooltip="Chat"
-          onClick={event => {
-            event.stopPropagation();
-            showContactToolStatus('Chat', contact);
-          }}
-          type="button"
-        >
-          <MessageSquare size={18} />
-        </button>
-        <button
-          aria-label={`Start video meeting with ${contact.name}`}
-          className={styles.contactIconButton}
-          data-tooltip="Video call"
-          onClick={event => {
-            event.stopPropagation();
-            showContactToolStatus('Video call', contact);
-          }}
-          type="button"
-        >
-          <Video size={18} />
-        </button>
-        <button
-          aria-label={`Schedule with ${contact.name}`}
-          className={styles.contactIconButton}
-          data-tooltip="Schedule"
-          onClick={event => {
-            event.stopPropagation();
-            showContactToolStatus('Calendar', contact);
-          }}
-          type="button"
-        >
-          <CalendarDays size={18} />
-        </button>
-      </span>
-    </span>
-  );
-
   const submitCompose = async (event: FormEvent<HTMLFormElement>) => {
     event.preventDefault();
     if (sendLockRef.current) return;
@@ -1805,7 +1149,11 @@ export default function FlowConsole({
                                 <strong>{contact.name}</strong>
                                 <span> &lt;{contact.email}&gt;</span>
                               </button>
-                              {renderContactCard(contact)}
+                              <ContactHoverCard
+                                contact={contact}
+                                onCompose={openComposeToContact}
+                                onTool={showContactToolStatus}
+                              />
                             </div>
                             <time>{formatMessageDate(message.date)}</time>
                           </div>
@@ -1820,7 +1168,12 @@ export default function FlowConsole({
                               {sentTrackingLabel(message)}
                             </div>
                           ) : null}
-                          <p>{cleanReplyBody(message.body)}</p>
+                          <div
+                            className={styles.readerHtml}
+                            dangerouslySetInnerHTML={{
+                              __html: renderReaderMessageHtml(message),
+                            }}
+                          />
                           {isLastVisibleMessage(selectedThread, message) &&
                           selectedThread.reactions.length ? (
                             <div
@@ -1951,7 +1304,11 @@ export default function FlowConsole({
                               ? `To:${contact.name}`
                               : contact.name}
                           </button>
-                          {renderContactCard(contact)}
+                          <ContactHoverCard
+                            contact={contact}
+                            onCompose={openComposeToContact}
+                            onTool={showContactToolStatus}
+                          />
                         </span>
                       </span>
                       <span className={styles.preview}>
