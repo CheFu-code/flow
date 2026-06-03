@@ -528,7 +528,8 @@
   border-radius: 999px;
 }
 
-.toolbarButton:disabled {
+.toolbarButton:disabled,
+.readerIconButton:disabled {
   cursor: not-allowed;
   opacity: 0.38;
 }
@@ -928,9 +929,92 @@
 
 .readerToolbar {
   display: flex;
+  min-width: 0;
   align-items: center;
-  gap: 24px;
-  padding: 15px;
+  gap: 8px;
+  border-bottom: 1px solid #f1f3f4;
+  padding: 12px 18px;
+}
+
+.readerToolbarGroup {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+}
+
+.readerToolbarDivider {
+  width: 1px;
+  height: 24px;
+  background: #e0e3e7;
+  margin: 0 6px;
+}
+
+.readerToolbarSpacer {
+  flex: 1 1 auto;
+  min-width: 12px;
+}
+
+.readerToolbarCount {
+  flex: 0 0 auto;
+  color: #5f6368;
+  font-size: 12px;
+  white-space: nowrap;
+}
+
+.readerIconButtonWide {
+  grid-template-columns: auto auto;
+  width: 52px;
+  gap: 1px;
+}
+
+.readerMenuWrap {
+  position: relative;
+  display: grid;
+  place-items: center;
+}
+
+.readerMenu {
+  position: absolute;
+  top: calc(100% + 8px);
+  left: 0;
+  z-index: 65;
+  display: grid;
+  min-width: 180px;
+  border: 1px solid #e5e7eb;
+  border-radius: 8px;
+  background: #ffffff;
+  box-shadow: 0 16px 36px rgba(15, 23, 42, 0.14);
+  padding: 6px;
+}
+
+.readerMenu button {
+  display: flex;
+  width: 100%;
+  align-items: center;
+  border: 0;
+  border-radius: 6px;
+  background: transparent;
+  color: #202124;
+  font: inherit;
+  justify-content: flex-start;
+  padding: 8px 10px;
+  text-align: left;
+}
+
+.readerMenu button:hover {
+  background: #f1f5f9;
+}
+
+.readerStatus {
+  margin: 12px 28px 0 75px;
+}
+
+.readerHeaderLine {
+  display: flex;
+  min-width: 0;
+  align-items: flex-start;
+  gap: 12px;
+  margin: 26px 28px 20px 75px;
 }
 
 .readerSubject {
@@ -938,7 +1022,8 @@
   min-width: 0;
   align-items: center;
   gap: 8px;
-  margin: 10px 0 20px 75px;
+  flex: 1 1 auto;
+  margin: 0;
   color: #202124;
   font-size: 22px;
   font-weight: 400;
@@ -952,6 +1037,13 @@
   color: #222222;
   padding: 2px 5px;
   font-size: 12px;
+}
+
+.readerSubjectActions {
+  display: flex;
+  flex: 0 0 auto;
+  align-items: center;
+  gap: 4px;
 }
 
 .readerThread {
@@ -1000,7 +1092,7 @@
 .readerMeta {
   display: flex;
   min-width: 0;
-  align-items: flex-start;
+  align-items: center;
   gap: 14px;
 }
 
@@ -1021,9 +1113,16 @@
 
 .readerMeta time {
   flex: 0 0 auto;
-  margin-left: auto;
   color: #5e5e5e;
   font-size: 12px;
+}
+
+.readerMessageActions {
+  display: flex;
+  flex: 0 0 auto;
+  align-items: center;
+  gap: 2px;
+  margin-left: auto;
 }
 
 .readerHtml {
@@ -1822,9 +1921,33 @@
     grid-row: 1;
   }
 
-  .readerSubject {
+  .readerToolbar {
+    flex-wrap: wrap;
+    gap: 6px;
+    padding: 10px 12px;
+  }
+
+  .readerToolbarSpacer {
+    flex-basis: 100%;
+    height: 0;
+  }
+
+  .readerStatus,
+  .readerHeaderLine {
     margin-left: 20px;
-    padding-right: 20px;
+    margin-right: 16px;
+  }
+
+  .readerHeaderLine {
+    flex-direction: column;
+  }
+
+  .readerSubject {
+    padding-right: 0;
+  }
+
+  .readerSubjectActions {
+    align-self: flex-end;
   }
 
   .readerBody {
@@ -1833,10 +1956,12 @@
 
   .readerMeta {
     flex-direction: column;
+    align-items: stretch;
     gap: 4px;
   }
 
-  .readerMeta time {
+  .readerMessageActions {
+    align-self: flex-start;
     margin-left: 0;
   }
 

@@ -1,5 +1,5 @@
 import { cleanReplyBody } from './mail';
-import type { MailMessage } from './types';
+import type { MailMessage, MailThread } from './types';
 
 const unsafeTagPattern =
   /<\s*(script|style|iframe|object|embed|link|meta|base|form|input|button|textarea|select|option)[^>]*>[\s\S]*?<\s*\/\s*\1\s*>/gi;
@@ -114,6 +114,46 @@ export function renderReaderMessageHtml(message: MailMessage) {
   }
 
   return linkifyPlainText(cleanReplyBody(message.body || message.preview || ''));
+}
+
+export function renderReaderPrintDocument(thread: MailThread) {
+  const messages = thread.messages
+    .map(
+      message => `
+        <section class="message">
+          <header>
+            <strong>${escapeHtml(message.name)}</strong>
+            <span>${escapeHtml(message.from)}</span>
+            <time>${escapeHtml(new Date(message.date).toLocaleString())}</time>
+          </header>
+          <div class="body">${renderReaderMessageHtml(message)}</div>
+        </section>
+      `,
+    )
+    .join('');
+
+  return `<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <title>${escapeHtml(thread.subject)}</title>
+    <style>
+      body { color: #202124; font-family: Arial, sans-serif; margin: 32px; }
+      h1 { font-size: 24px; font-weight: 500; margin: 0 0 24px; }
+      .message { border-top: 1px solid #e5e7eb; padding: 18px 0; }
+      .message:first-of-type { border-top: 0; }
+      header { display: grid; gap: 4px; margin-bottom: 18px; }
+      header span, time { color: #5f6368; font-size: 12px; }
+      .body { font-size: 14px; line-height: 1.65; max-width: 900px; }
+      img, table { max-width: 100%; }
+      a { color: #0f766e; }
+    </style>
+  </head>
+  <body>
+    <h1>${escapeHtml(thread.subject)}</h1>
+    ${messages}
+  </body>
+</html>`;
 }
 
 function sanitizeReaderHtml(value: string) {

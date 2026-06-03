@@ -1,19 +1,25 @@
 'use client';
 
 import {
+  Archive,
   AtSign,
   ArrowLeft,
   Bold,
   CaseSensitive,
   ChevronDown,
+  ChevronLeft,
+  ChevronRight,
   CircleHelp,
   Clock3,
   EllipsisVertical,
+  ExternalLink,
   FileText,
+  FolderInput,
   Grid3X3,
   Image as ImageIcon,
   Italic,
   KeyRound,
+  Keyboard,
   Link2,
   List,
   ListIndentDecrease,
@@ -25,15 +31,19 @@ import {
   Mail,
   Maximize2,
   Menu,
+  MailOpen,
   Minimize2,
   Minus,
+  OctagonAlert,
   Palette,
   Paperclip,
   PenLine,
   Pencil,
+  Printer,
   Quote,
   Redo2,
   RemoveFormatting,
+  Reply,
   Search,
   Settings,
   SlidersHorizontal,
@@ -98,7 +108,10 @@ import {
   threadDeleteCopy,
   toMailMessage,
 } from '@/lib/flow-console/mail';
-import { renderReaderMessageHtml } from '@/lib/flow-console/reader';
+import {
+  renderReaderMessageHtml,
+  renderReaderPrintDocument,
+} from '@/lib/flow-console/reader';
 import { parseServerSentEvent } from '@/lib/flow-console/sse';
 import type {
   BackendMessagesResponse,
@@ -110,6 +123,7 @@ import type {
   FlowConsoleProps,
   MailFolder,
   MailMessage,
+  MessageFolder,
   StatusMessage,
 } from '@/lib/flow-console/types';
 import styles from './FlowConsole.module.css';
@@ -148,6 +162,8 @@ export default function FlowConsole({
   const [moreToolsOpen, setMoreToolsOpen] = useState(false);
   const [messages, setMessages] = useState<MailMessage[]>([]);
   const [query, setQuery] = useState('');
+  const [readerMoreOpen, setReaderMoreOpen] = useState(false);
+  const [readerMoveOpen, setReaderMoveOpen] = useState(false);
   const [recipientEmails, setRecipientEmails] = useState<string[]>([]);
   const [refreshSeq, setRefreshSeq] = useState(0);
   const [sendOptionsOpen, setSendOptionsOpen] = useState(false);
@@ -192,6 +208,18 @@ export default function FlowConsole({
   const allVisibleSelected =
     visibleThreads.length > 0 &&
     visibleThreads.every(thread => selectedIds.includes(thread.id));
+  const selectedThreadIndex = visibleThreads.findIndex(
+    thread => thread.id === selectedMessageId,
+  );
+  const readerPositionLabel =
+    selectedThreadIndex >= 0
+      ? `${selectedThreadIndex + 1} of ${visibleThreads.length}`
+      : visibleThreads.length
+        ? `1 of ${visibleThreads.length}`
+        : '0 of 0';
+  const canOpenNewerThread = selectedThreadIndex > 0;
+  const canOpenOlderThread =
+    selectedThreadIndex >= 0 && selectedThreadIndex < visibleThreads.length - 1;
 
   const selectedFolderTitle = getFolderLabel(activeFolder);
   const activeEmptyState = emptyStates[activeFolder];
@@ -363,6 +391,8 @@ export default function FlowConsole({
   const changeFolder = (folder: MailFolder) => {
     setIsLoadingMessages(true);
     setActiveFolder(folder);
+    setReaderMoreOpen(false);
+    setReaderMoveOpen(false);
     setSelectedIds([]);
     setSelectedMessageId(null);
     setStatus(null);
@@ -381,6 +411,8 @@ export default function FlowConsole({
         .map(message => message.id) || [];
 
     setSelectedMessageId(threadId);
+    setReaderMoreOpen(false);
+    setReaderMoveOpen(false);
     setSelectedIds([]);
 
     if (!unreadMessageIds.length) return;
@@ -485,6 +517,8 @@ export default function FlowConsole({
     const messageIds = selectedThread.allMessages.map(message => message.id);
     if (!messageIds.length) return;
 
+    setReaderMoreOpen(false);
+    setReaderMoveOpen(false);
     const permanent = selectedThread.allMessages.every(
       message => message.folder === 'bin',
     );
@@ -493,6 +527,146 @@ export default function FlowConsole({
       messageIds,
       permanent,
     });
+  };
+
+  const openThreadByOffset = (offset: number) => {
+    if (selectedThreadIndex < 0) return;
+    const target = visibleThreads[selectedThreadIndex + offset];
+    if (target) openMessage(target.id);
+  };
+
+  const mutateOpenThread = async ({
+    body,
+    endpoint,
+    folder,
+    keepOpen = false,
+    success,
+    unread,
+  }: {
+    body?: Record<string, string>;
+    endpoint: string;
+    folder?: MessageFolder;
+    keepOpen?: boolean;
+    success: string;
+    unread?: boolean;
+  }) => {
+    if (!selectedThread) return;
+
+    const messageIds = selectedThread.allMessages.map(message => message.id);
+    if (!messageIds.length) return;
+
+    setReaderMoreOpen(false);
+    setReaderMoveOpen(false);
+
+    try {
+      await Promise.all(
+        messageIds.map(messageId =>
+          fetch(apiUrl(`/flow/messages/${messageId}/${endpoint}`), {
+            body: body ? JSON.stringify(body) : undefined,
+            credentials: 'include',
+            headers: body
+              ? { 'Content-Type': 'application/json', ...flowHeaders() }
+              : flowHeaders(),
+            method: 'POST',
+          }).then(response => responseJson(response)),
+        ),
+      );
+
+      setMessages(current =>
+        current.map(message =>
+          messageIds.includes(message.id)
+            ? {
+                ...message,
+                ...(folder ? { folder } : {}),
+                ...(typeof unread === 'boolean' ? { unread } : {}),
+              }
+            : message,
+        ),
+      );
+      setStatus({ kind: 'success', text: success });
+      if (!keepOpen) setSelectedMessageId(null);
+      refreshMessages();
+    } catch (error) {
+      setStatus({
+        kind: 'info',
+        text: error instanceof Error ? error.message : 'Message update failed.',
+      });
+    }
+  };
+
+  const archiveOpenThread = () =>
+    mutateOpenThread({
+      endpoint: 'archive',
+      folder: 'archived',
+      success: 'Conversation archived.',
+      unread: false,
+    });
+
+  const reportOpenThread = () =>
+    mutateOpenThread({
+      endpoint: 'report',
+      folder: 'archived',
+      success: 'Conversation reported and archived.',
+      unread: false,
+    });
+
+  const markOpenThreadUnread = () =>
+    mutateOpenThread({
+      endpoint: 'unread',
+      success: 'Conversation marked as unread.',
+      unread: true,
+    });
+
+  const moveOpenThreadTo = (folder: MessageFolder) =>
+    mutateOpenThread({
+      body: { folder },
+      endpoint: 'folder',
+      folder,
+      success: `Conversation moved to ${getMessageFolderLabel(folder)}.`,
+      unread: false,
+    });
+
+  const showReaderToolStatus = (text: string) => {
+    setReaderMoreOpen(false);
+    setReaderMoveOpen(false);
+    setStatus({ kind: 'info', text });
+  };
+
+  const openThreadDocument = (print = false) => {
+    if (!selectedThread) return;
+
+    const popup = window.open('', '_blank');
+    if (!popup) {
+      showReaderToolStatus('Allow pop-ups to open this conversation.');
+      return;
+    }
+
+    popup.document.open();
+    popup.document.write(renderReaderPrintDocument(selectedThread));
+    popup.document.close();
+
+    if (print) {
+      window.setTimeout(() => {
+        popup.focus();
+        popup.print();
+      }, 250);
+    }
+  };
+
+  const replyToMessage = (message: MailMessage) => {
+    const contact = contactFromMessage(message);
+    if (!contact.email) return;
+
+    resetCompose();
+    setRecipientEmails([contact.email]);
+    setComposeFields({
+      ...initialCompose,
+      subject: /^re:/i.test(message.subject)
+        ? message.subject
+        : `Re: ${message.subject}`,
+    });
+    setComposeOpen(true);
+    setStatus(null);
   };
 
   const confirmDelete = async () => {
@@ -1097,34 +1271,221 @@ export default function FlowConsole({
           {selectedThread ? (
             <article className={styles.reader}>
               <div className={styles.readerToolbar}>
+                <div className={styles.readerToolbarGroup}>
+                  <button
+                    aria-label="Back to message list"
+                    className={styles.readerIconButton}
+                    data-tooltip="Back"
+                    onClick={() => {
+                      setReaderMoreOpen(false);
+                      setReaderMoveOpen(false);
+                      setSelectedMessageId(null);
+                    }}
+                    type="button"
+                  >
+                    <ArrowLeft size={18} />
+                  </button>
+                </div>
+
+                <div className={styles.readerToolbarGroup}>
+                  <button
+                    aria-label="Archive conversation"
+                    className={styles.readerIconButton}
+                    data-tooltip="Archive"
+                    onClick={archiveOpenThread}
+                    type="button"
+                  >
+                    <Archive size={18} />
+                  </button>
+                  <button
+                    aria-label="Report conversation"
+                    className={styles.readerIconButton}
+                    data-tooltip="Report spam"
+                    onClick={reportOpenThread}
+                    type="button"
+                  >
+                    <OctagonAlert size={18} />
+                  </button>
+                  <button
+                    aria-label="Delete conversation"
+                    className={styles.readerIconButton}
+                    data-tooltip="Delete"
+                    onClick={requestDeleteOpenMessage}
+                    type="button"
+                  >
+                    <Trash2 size={18} />
+                  </button>
+                </div>
+
+                <span className={styles.readerToolbarDivider} />
+
+                <div className={styles.readerToolbarGroup}>
+                  <button
+                    aria-label="Mark conversation as unread"
+                    className={styles.readerIconButton}
+                    data-tooltip="Mark as unread"
+                    onClick={markOpenThreadUnread}
+                    type="button"
+                  >
+                    <MailOpen size={18} />
+                  </button>
+                  <div className={styles.readerMenuWrap}>
+                    <button
+                      aria-expanded={readerMoveOpen}
+                      aria-label="Move conversation"
+                      className={styles.readerIconButton}
+                      data-tooltip="Move to"
+                      onClick={() => {
+                        setReaderMoreOpen(false);
+                        setReaderMoveOpen(open => !open);
+                      }}
+                      type="button"
+                    >
+                      <FolderInput size={18} />
+                    </button>
+                    {readerMoveOpen ? (
+                      <div className={styles.readerMenu}>
+                        <button onClick={() => moveOpenThreadTo('inbox')} type="button">
+                          Inbox
+                        </button>
+                        <button onClick={() => moveOpenThreadTo('sent')} type="button">
+                          Sent
+                        </button>
+                        <button onClick={() => moveOpenThreadTo('drafts')} type="button">
+                          Drafts
+                        </button>
+                        <button
+                          onClick={() => moveOpenThreadTo('archived')}
+                          type="button"
+                        >
+                          Archive
+                        </button>
+                      </div>
+                    ) : null}
+                  </div>
+                  <div className={styles.readerMenuWrap}>
+                    <button
+                      aria-expanded={readerMoreOpen}
+                      aria-label="More message actions"
+                      className={styles.readerIconButton}
+                      data-tooltip="More"
+                      onClick={() => {
+                        setReaderMoveOpen(false);
+                        setReaderMoreOpen(open => !open);
+                      }}
+                      type="button"
+                    >
+                      <EllipsisVertical size={18} />
+                    </button>
+                    {readerMoreOpen ? (
+                      <div className={styles.readerMenu}>
+                        <button onClick={markOpenThreadUnread} type="button">
+                          Mark unread
+                        </button>
+                        <button
+                          onClick={() =>
+                            showReaderToolStatus(
+                              'Original source view is ready for backend integration.',
+                            )
+                          }
+                          type="button"
+                        >
+                          Show original
+                        </button>
+                        <button
+                          onClick={() =>
+                            showReaderToolStatus('Message download is ready for integration.')
+                          }
+                          type="button"
+                        >
+                          Download message
+                        </button>
+                      </div>
+                    ) : null}
+                  </div>
+                </div>
+
+                <span className={styles.readerToolbarSpacer} />
+
+                <span className={styles.readerToolbarCount}>
+                  {readerPositionLabel}
+                </span>
                 <button
-                  aria-label="Back to message list"
+                  aria-label="Newer conversation"
                   className={styles.readerIconButton}
-                  data-tooltip="Back"
-                  onClick={() => setSelectedMessageId(null)}
+                  data-tooltip="Newer"
+                  disabled={!canOpenNewerThread}
+                  onClick={() => openThreadByOffset(-1)}
                   type="button"
                 >
-                  <ArrowLeft size={18} />
+                  <ChevronLeft size={18} />
                 </button>
                 <button
-                  aria-label="Delete conversation"
+                  aria-label="Older conversation"
                   className={styles.readerIconButton}
-                  data-tooltip="Delete"
-                  onClick={requestDeleteOpenMessage}
+                  data-tooltip="Older"
+                  disabled={!canOpenOlderThread}
+                  onClick={() => openThreadByOffset(1)}
                   type="button"
                 >
-                  <Trash2 size={18} />
+                  <ChevronRight size={18} />
+                </button>
+                <button
+                  aria-label="Keyboard shortcuts"
+                  className={`${styles.readerIconButton} ${styles.readerIconButtonWide}`}
+                  data-tooltip="Keyboard shortcuts"
+                  onClick={() =>
+                    showReaderToolStatus('Keyboard shortcuts are ready for integration.')
+                  }
+                  type="button"
+                >
+                  <Keyboard size={18} />
+                  <ChevronDown size={13} />
                 </button>
               </div>
 
-              <h1 className={styles.readerSubject}>
-                {selectedThread.subject}
-                <span>
-                  {selectedThread.count > 1
-                    ? `${selectedThread.count} messages`
-                    : getMessageFolderLabel(selectedThread.latest.folder)}
-                </span>
-              </h1>
+              {status ? (
+                <div
+                  className={
+                    status.kind === 'success'
+                      ? `${styles.status} ${styles.statusSuccess} ${styles.readerStatus}`
+                      : `${styles.status} ${styles.readerStatus}`
+                  }
+                >
+                  {status.text}
+                </div>
+              ) : null}
+
+              <div className={styles.readerHeaderLine}>
+                <h1 className={styles.readerSubject}>
+                  {selectedThread.subject}
+                  <span>
+                    {selectedThread.count > 1
+                      ? `${selectedThread.count} messages`
+                      : getMessageFolderLabel(selectedThread.latest.folder)}
+                  </span>
+                </h1>
+                <div className={styles.readerSubjectActions}>
+                  <button
+                    aria-label="Print conversation"
+                    className={styles.readerIconButton}
+                    data-tooltip="Print all"
+                    onClick={() => openThreadDocument(true)}
+                    type="button"
+                  >
+                    <Printer size={18} />
+                  </button>
+                  <button
+                    aria-label="Open conversation in new window"
+                    className={styles.readerIconButton}
+                    data-tooltip="Open in new window"
+                    onClick={() => openThreadDocument()}
+                    type="button"
+                  >
+                    <ExternalLink size={18} />
+                  </button>
+                </div>
+              </div>
 
               <div className={styles.readerThread}>
                 {selectedThread.messages.map(message => {
@@ -1155,7 +1516,64 @@ export default function FlowConsole({
                                 onTool={showContactToolStatus}
                               />
                             </div>
-                            <time>{formatMessageDate(message.date)}</time>
+                            <div className={styles.readerMessageActions}>
+                              <time>{formatMessageDate(message.date)}</time>
+                              <button
+                                aria-label={
+                                  message.starred
+                                    ? 'Remove star from message'
+                                    : 'Star message'
+                                }
+                                className={
+                                  message.starred
+                                    ? `${styles.readerIconButton} ${styles.rowStarActive}`
+                                    : styles.readerIconButton
+                                }
+                                data-tooltip={message.starred ? 'Unstar' : 'Star'}
+                                onClick={event => toggleStarred(event, message.id)}
+                                type="button"
+                              >
+                                <Star
+                                  fill={message.starred ? 'currentColor' : 'none'}
+                                  size={18}
+                                />
+                              </button>
+                              <button
+                                aria-label="Add reaction"
+                                className={styles.readerIconButton}
+                                data-tooltip="Add reaction"
+                                onClick={() =>
+                                  showReaderToolStatus(
+                                    'Reactions are ready for backend integration.',
+                                  )
+                                }
+                                type="button"
+                              >
+                                <Smile size={18} />
+                              </button>
+                              <button
+                                aria-label="Reply"
+                                className={styles.readerIconButton}
+                                data-tooltip="Reply"
+                                onClick={() => replyToMessage(message)}
+                                type="button"
+                              >
+                                <Reply size={18} />
+                              </button>
+                              <button
+                                aria-label="More message options"
+                                className={styles.readerIconButton}
+                                data-tooltip="More"
+                                onClick={() =>
+                                  showReaderToolStatus(
+                                    'More per-message actions are ready for integration.',
+                                  )
+                                }
+                                type="button"
+                              >
+                                <EllipsisVertical size={18} />
+                              </button>
+                            </div>
                           </div>
                           {message.direction === 'outbound' ? (
                             <div
