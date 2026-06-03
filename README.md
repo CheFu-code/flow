@@ -66,21 +66,26 @@ activation screen, not a public key-creation screen.
    support@chefuinc.com
    ```
 
-4. In Resend, create a webhook endpoint for received emails:
+4. Enable tracking metrics for your sending domain if you want Flow to show
+   whether sent emails were opened. Resend requires open tracking and a verified
+   tracking subdomain before it can emit open events.
+
+5. In Resend, create a webhook endpoint for received emails and tracking events:
 
    ```txt
    https://YOUR_BACKEND_DOMAIN/flow/inbound
    ```
 
-   Subscribe it to the email received event.
+   Subscribe it to `email.received`, `email.opened`, `email.delivered`,
+   `email.clicked`, `email.bounced`, and `email.failed`.
 
-5. Copy the webhook signing secret from Resend and paste it into backend env:
+6. Copy the webhook signing secret from Resend and paste it into backend env:
 
    ```bash
    RESEND_WEBHOOK_SECRET=...
    ```
 
-6. Set backend sender identities:
+7. Set backend sender identities:
 
    ```bash
    FLOW_SENDERS="CheFu Inc <hello@chefuinc.com>;Flow Mail <mail@flow.chefuinc.com>;Support <support@chefuinc.com>;Security <security@chefuinc.com>;Muzalo <muzalo@chefuinc.com>;CheFu Academy <academy@chefuinc.com>;CheFu Quantum <quantum@chefuinc.com>"
@@ -88,9 +93,9 @@ activation screen, not a public key-creation screen.
 
    Flow only allows sending from identities in this list.
 
-7. Deploy/restart the backend, then deploy/restart Flow.
+8. Deploy/restart the backend, then deploy/restart Flow.
 
-8. Send a test email from Gmail to:
+9. Send a test email from Gmail to:
 
    ```txt
    support@chefuinc.com

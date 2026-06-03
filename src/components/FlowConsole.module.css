@@ -581,11 +581,12 @@
   align-items: center;
   gap: 10px;
   border-bottom: 1px solid #e8eaed;
-  background: #f2f6fc;
+  background: #ffffff;
   color: #202124;
   padding: 0 18px 0 10px;
   text-align: left;
   cursor: pointer;
+  transition: background 0.12s ease;
 }
 
 .messageRow:hover {
@@ -603,6 +604,7 @@
 }
 
 .messageUnread {
+  background: #f2f6fc;
   font-weight: 700;
 }
 
@@ -666,9 +668,18 @@
   align-items: center;
 }
 
+.contactHover::after {
+  position: absolute;
+  top: 100%;
+  left: 0;
+  width: max(100%, 420px);
+  height: 12px;
+  content: "";
+}
+
 .contactCard {
   position: absolute;
-  top: calc(100% + 10px);
+  top: calc(100% + 4px);
   left: 0;
   z-index: 90;
   display: grid;
@@ -808,6 +819,51 @@
   font-weight: 700;
   margin-left: 6px;
   padding: 0 7px;
+}
+
+.trackingBadge,
+.trackingLine {
+  display: inline-flex;
+  align-items: center;
+  border-radius: 999px;
+  font-weight: 700;
+  white-space: nowrap;
+}
+
+.trackingBadge {
+  height: 20px;
+  flex: 0 0 auto;
+  font-size: 12px;
+  margin-left: 6px;
+  padding: 0 7px;
+}
+
+.trackingLine {
+  width: max-content;
+  max-width: 100%;
+  font-size: 12px;
+  margin-top: 7px;
+  padding: 4px 9px;
+}
+
+.trackingopen {
+  background: #dcfce7;
+  color: #166534;
+}
+
+.trackingdelivered {
+  background: #e0f2fe;
+  color: #075985;
+}
+
+.trackingpending {
+  background: #f1f5f9;
+  color: #475569;
+}
+
+.trackingwarning {
+  background: #fee2e2;
+  color: #991b1b;
 }
 
 .messageRow time {

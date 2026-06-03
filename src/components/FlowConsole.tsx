@@ -79,8 +79,13 @@ type MessageFolder =
 type MailMessage = {
   attachments: number;
   body: string;
+  clickedAt?: string;
+  clickCount?: number;
   date: string;
+  deliveredAt?: string;
+  deliveryStatus?: string;
   direction: 'inbound' | 'outbound';
+  firstOpenedAt?: string;
   folder: MessageFolder;
   from: string;
   html?: string;
@@ -88,6 +93,8 @@ type MailMessage = {
   inReplyTo?: string;
   isReaction?: boolean;
   name: string;
+  openCount?: number;
+  openedAt?: string;
   preview: string;
   reactionCount?: number;
   reactionEmoji?: string;
@@ -162,14 +169,21 @@ type FlowConfig = {
 
 type BackendMessage = {
   attachments?: number;
+  clickedAt?: string;
+  clickCount?: number;
   createdAt?: string;
+  deliveredAt?: string;
+  deliveryStatus?: string;
   direction: 'inbound' | 'outbound';
+  firstOpenedAt?: string;
   folder: string;
   from: string;
   html?: string;
   id: string;
   inReplyTo?: string;
   isReaction?: boolean;
+  openCount?: number;
+  openedAt?: string;
   preview?: string;
   reactionCount?: number;
   reactionEmoji?: string;
@@ -368,6 +382,15 @@ function formatMessageDate(value: string) {
   }).format(new Date(value));
 }
 
+function formatTrackingDate(value: string) {
+  return new Intl.DateTimeFormat('en', {
+    day: 'numeric',
+    hour: '2-digit',
+    minute: '2-digit',
+    month: 'short',
+  }).format(new Date(value));
+}
+
 function formatSessionExpiry(value: string) {
   return new Intl.DateTimeFormat('en', {
     day: 'numeric',
@@ -414,6 +437,47 @@ function contactFromMessage(message: MailMessage): ContactPreview {
   };
 }
 
+function sentTrackingLabel(message: MailMessage, compact = false) {
+  if (message.direction !== 'outbound') return '';
+
+  if (message.openedAt) {
+    const count = message.openCount || 1;
+    return compact
+      ? `Opened${count > 1 ? ` ${count}x` : ''}`
+      : `Opened ${count > 1 ? `${count} times, last ` : ''}${formatTrackingDate(
+          message.openedAt,
+        )}`;
+  }
+
+  if (message.clickedAt) {
+    return compact
+      ? 'Clicked'
+      : `Clicked ${formatTrackingDate(message.clickedAt)}`;
+  }
+
+  if (message.deliveredAt) {
+    return compact
+      ? 'Delivered'
+      : `Delivered ${formatTrackingDate(message.deliveredAt)}`;
+  }
+
+  if (['bounced', 'complained', 'delayed', 'failed'].includes(message.deliveryStatus || '')) {
+    const label = message.deliveryStatus || '';
+    return label.charAt(0).toUpperCase() + label.slice(1);
+  }
+
+  return 'Not opened yet';
+}
+
+function sentTrackingKind(message: MailMessage) {
+  if (message.openedAt || message.clickedAt) return 'open';
+  if (message.deliveredAt) return 'delivered';
+  if (['bounced', 'complained', 'delayed', 'failed'].includes(message.deliveryStatus || '')) {
+    return 'warning';
+  }
+  return 'pending';
+}
+
 function backendFolderFor(folder: MailFolder) {
   if (folder === 'bin') return 'trash';
   return folder;
@@ -444,12 +508,17 @@ function toMailMessage(message: BackendMessage): MailMessage {
   return {
     attachments: Number(message.attachments) || 0,
     body: message.text || message.preview || '',
+    clickedAt: message.clickedAt,
+    clickCount: Number(message.clickCount) || 0,
     date:
       message.sentAt ||
       message.receivedAt ||
       message.createdAt ||
       new Date().toISOString(),
+    deliveredAt: message.deliveredAt,
+    deliveryStatus: message.deliveryStatus,
     direction: message.direction === 'outbound' ? 'outbound' : 'inbound',
+    firstOpenedAt: message.firstOpenedAt,
     folder: uiFolderFor(message.folder),
     from: message.from || '',
     html: message.html,
@@ -457,6 +526,8 @@ function toMailMessage(message: BackendMessage): MailMessage {
     inReplyTo: message.inReplyTo,
     isReaction: Boolean(message.isReaction),
     name: participantName(message),
+    openCount: Number(message.openCount) || 0,
+    openedAt: message.openedAt,
     preview: message.preview || message.text || '',
     reactionCount: Number(message.reactionCount) || undefined,
     reactionEmoji: message.reactionEmoji,
@@ -1738,6 +1809,17 @@ export default function FlowConsole({
                             </div>
                             <time>{formatMessageDate(message.date)}</time>
                           </div>
+                          {message.direction === 'outbound' ? (
+                            <div
+                              className={`${styles.trackingLine} ${
+                                styles[
+                                  `tracking${sentTrackingKind(message)}`
+                                ]
+                              }`}
+                            >
+                              {sentTrackingLabel(message)}
+                            </div>
+                          ) : null}
                           <p>{cleanReplyBody(message.body)}</p>
                           {isLastVisibleMessage(selectedThread, message) &&
                           selectedThread.reactions.length ? (
@@ -1876,6 +1958,15 @@ export default function FlowConsole({
                         <span>{thread.subject}</span>
                         {message.preview || message.body ? (
                           <em>- {message.preview || message.body}</em>
+                        ) : null}
+                        {message.direction === 'outbound' ? (
+                          <strong
+                            className={`${styles.trackingBadge} ${
+                              styles[`tracking${sentTrackingKind(message)}`]
+                            }`}
+                          >
+                            {sentTrackingLabel(message, true)}
+                          </strong>
                         ) : null}
                         {thread.count > 1 ? (
                           <strong className={styles.threadCount}>
