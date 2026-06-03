@@ -4,6 +4,7 @@ import {
   AtSign,
   ArrowLeft,
   Bold,
+  CalendarDays,
   CaseSensitive,
   ChevronDown,
   CircleHelp,
@@ -26,6 +27,7 @@ import {
   Mail,
   Maximize2,
   Menu,
+  MessageSquare,
   Minimize2,
   Minus,
   Palette,
@@ -49,6 +51,8 @@ import {
   Underline,
   Undo2,
   UserCircle,
+  UserPlus,
+  Video,
   X,
 } from 'lucide-react';
 import type {
@@ -129,6 +133,11 @@ type ComposeAttachment = {
   id: string;
   inline?: boolean;
   size: number;
+};
+
+type ContactPreview = {
+  email: string;
+  name: string;
 };
 
 type StatusMessage = {
@@ -382,6 +391,27 @@ function getMessageFolderLabel(folder: MessageFolder) {
 
 function getInitial(value: string) {
   return value.trim().charAt(0).toUpperCase() || 'F';
+}
+
+function addressEmail(value: string) {
+  const match = value.match(/<([^>]+)>/);
+  return (match?.[1] || value).trim();
+}
+
+function contactFromMessage(message: MailMessage): ContactPreview {
+  if (message.folder === 'sent') {
+    const email = message.to[0] || '';
+
+    return {
+      email,
+      name: email.split('@')[0] || 'recipient',
+    };
+  }
+
+  return {
+    email: addressEmail(message.from),
+    name: message.name || addressEmail(message.from).split('@')[0] || 'Sender',
+  };
 }
 
 function backendFolderFor(folder: MailFolder) {
@@ -1065,6 +1095,62 @@ export default function FlowConsole({
     syncComposeBody();
   };
 
+  const insertEditorList = (ordered: boolean) => {
+    const editor = composeEditorRef.current;
+    if (!editor || isSending) return;
+
+    focusComposeEditor();
+    const selection = window.getSelection();
+    const selectedRange =
+      selection?.rangeCount && selection.anchorNode
+        ? selection.getRangeAt(0)
+        : null;
+    const range =
+      selectedRange && editor.contains(selectedRange.commonAncestorContainer)
+        ? selectedRange
+        : document.createRange();
+
+    if (!selectedRange || !editor.contains(selectedRange.commonAncestorContainer)) {
+      range.selectNodeContents(editor);
+      range.collapse(false);
+    }
+
+    const selectedText =
+      selection && editor.contains(range.commonAncestorContainer)
+        ? selection.toString()
+        : '';
+    const lines = selectedText
+      .split(/\r?\n/)
+      .map(line => line.trim())
+      .filter(Boolean);
+    const items = lines.length ? lines : [''];
+    const list = document.createElement(ordered ? 'ol' : 'ul');
+
+    items.forEach(line => {
+      const item = document.createElement('li');
+      if (line) {
+        item.textContent = line;
+      } else {
+        item.appendChild(document.createElement('br'));
+      }
+      list.appendChild(item);
+    });
+
+    range.deleteContents();
+    range.insertNode(list);
+
+    const lastItem = list.lastElementChild;
+    if (lastItem && selection) {
+      const caret = document.createRange();
+      caret.selectNodeContents(lastItem);
+      caret.collapse(false);
+      selection.removeAllRanges();
+      selection.addRange(caret);
+    }
+
+    syncComposeBody();
+  };
+
   const handleEditorPaste = (event: ClipboardEvent<HTMLDivElement>) => {
     event.preventDefault();
     insertEditorText(event.clipboardData.getData('text/plain'));
@@ -1267,6 +1353,97 @@ export default function FlowConsole({
     setComposeOpen(false);
     resetCompose();
   };
+
+  const openComposeToContact = (contact: ContactPreview) => {
+    if (!contact.email) return;
+
+    resetCompose();
+    setRecipientEmails([contact.email]);
+    setComposeOpen(true);
+    setStatus(null);
+  };
+
+  const showContactToolStatus = (tool: string, contact: ContactPreview) => {
+    setStatus({
+      kind: 'info',
+      text: `${tool} for ${contact.name} is ready for integration.`,
+    });
+  };
+
+  const renderContactCard = (contact: ContactPreview) => (
+    <span className={styles.contactCard} role="dialog">
+      <span className={styles.contactCardTop}>
+        <span className={styles.contactAvatar} aria-hidden="true">
+          {getInitial(contact.name || contact.email)}
+        </span>
+        <span className={styles.contactIdentity}>
+          <strong>{contact.name}</strong>
+          <span>{contact.email}</span>
+        </span>
+        <button
+          aria-label={`Add ${contact.name} to contacts`}
+          className={styles.contactIconButton}
+          data-tooltip="Add contact"
+          onClick={event => {
+            event.stopPropagation();
+            showContactToolStatus('Contact card', contact);
+          }}
+          type="button"
+        >
+          <UserPlus size={18} />
+        </button>
+      </span>
+      <span className={styles.contactActions}>
+        <button
+          className={styles.contactMailButton}
+          onClick={event => {
+            event.stopPropagation();
+            openComposeToContact(contact);
+          }}
+          type="button"
+        >
+          <Mail size={18} />
+          Send Mail
+        </button>
+        <button
+          aria-label={`Chat with ${contact.name}`}
+          className={styles.contactIconButton}
+          data-tooltip="Chat"
+          onClick={event => {
+            event.stopPropagation();
+            showContactToolStatus('Chat', contact);
+          }}
+          type="button"
+        >
+          <MessageSquare size={18} />
+        </button>
+        <button
+          aria-label={`Start video meeting with ${contact.name}`}
+          className={styles.contactIconButton}
+          data-tooltip="Video call"
+          onClick={event => {
+            event.stopPropagation();
+            showContactToolStatus('Video call', contact);
+          }}
+          type="button"
+        >
+          <Video size={18} />
+        </button>
+        <button
+          aria-label={`Schedule with ${contact.name}`}
+          className={styles.contactIconButton}
+          data-tooltip="Schedule"
+          onClick={event => {
+            event.stopPropagation();
+            showContactToolStatus('Calendar', contact);
+          }}
+          type="button"
+        >
+          <CalendarDays size={18} />
+        </button>
+      </span>
+    </span>
+  );
 
   const submitCompose = async (event: FormEvent<HTMLFormElement>) => {
     event.preventDefault();
@@ -1535,53 +1712,57 @@ export default function FlowConsole({
               </h1>
 
               <div className={styles.readerThread}>
-                {selectedThread.messages.map(message => (
-                  <section className={styles.readerMessage} key={message.id}>
-                    <div className={styles.readerBody}>
-                      <div className={styles.readerAvatar}>
-                        {message.name.charAt(0).toUpperCase()}
-                      </div>
-                      <div className={styles.readerContent}>
-                        <div className={styles.readerMeta}>
-                          <div>
-                            <strong>
-                              {message.folder === 'sent'
-                                ? message.to[0]?.split('@')[0] || 'recipient'
-                                : message.name}
-                            </strong>
-                            <span>
-                              {' '}
-                              &lt;
-                              {message.folder === 'sent'
-                                ? message.to.join(', ')
-                                : message.from}
-                              &gt;
-                            </span>
-                          </div>
-                          <time>{formatMessageDate(message.date)}</time>
+                {selectedThread.messages.map(message => {
+                  const contact = contactFromMessage(message);
+
+                  return (
+                    <section className={styles.readerMessage} key={message.id}>
+                      <div className={styles.readerBody}>
+                        <div className={styles.readerAvatar}>
+                          {message.name.charAt(0).toUpperCase()}
                         </div>
-                        <p>{cleanReplyBody(message.body)}</p>
-                        {isLastVisibleMessage(selectedThread, message) &&
-                        selectedThread.reactions.length ? (
-                          <div
-                            className={styles.reactionRow}
-                            aria-label="Message reactions"
-                          >
-                            {selectedThread.reactions.map(reaction => (
-                              <span
-                                className={styles.reactionChip}
-                                key={`${reaction.emoji}-${reaction.from}`}
+                        <div className={styles.readerContent}>
+                          <div className={styles.readerMeta}>
+                            <div
+                              className={styles.contactHover}
+                              onClick={event => event.stopPropagation()}
+                            >
+                              <button
+                                className={styles.readerSenderButton}
+                                type="button"
                               >
-                                <span aria-hidden="true">{reaction.emoji}</span>
-                                <strong>{reaction.count}</strong>
-                              </span>
-                            ))}
+                                <strong>{contact.name}</strong>
+                                <span> &lt;{contact.email}&gt;</span>
+                              </button>
+                              {renderContactCard(contact)}
+                            </div>
+                            <time>{formatMessageDate(message.date)}</time>
                           </div>
-                        ) : null}
+                          <p>{cleanReplyBody(message.body)}</p>
+                          {isLastVisibleMessage(selectedThread, message) &&
+                          selectedThread.reactions.length ? (
+                            <div
+                              className={styles.reactionRow}
+                              aria-label="Message reactions"
+                            >
+                              {selectedThread.reactions.map(reaction => (
+                                <span
+                                  className={styles.reactionChip}
+                                  key={`${reaction.emoji}-${reaction.from}`}
+                                >
+                                  <span aria-hidden="true">
+                                    {reaction.emoji}
+                                  </span>
+                                  <strong>{reaction.count}</strong>
+                                </span>
+                              ))}
+                            </div>
+                          ) : null}
+                        </div>
                       </div>
-                    </div>
-                  </section>
-                ))}
+                    </section>
+                  );
+                })}
               </div>
             </article>
           ) : (
@@ -1632,6 +1813,7 @@ export default function FlowConsole({
                 ) : visibleThreads.length ? (
                   visibleThreads.map(thread => {
                     const message = thread.latest;
+                    const contact = contactFromMessage(message);
 
                     return (
                     <div
@@ -1674,10 +1856,21 @@ export default function FlowConsole({
                           size={18}
                         />
                       </button>
-                      <span className={styles.sender}>
-                        {message.folder === 'sent'
-                          ? `To:${message.to[0]?.split('@')[0] || 'recipient'}`
-                          : message.name}
+                      <span
+                        className={styles.sender}
+                        onClick={event => event.stopPropagation()}
+                      >
+                        <span className={styles.contactHover}>
+                          <button
+                            className={styles.senderButton}
+                            type="button"
+                          >
+                            {message.folder === 'sent'
+                              ? `To:${contact.name}`
+                              : contact.name}
+                          </button>
+                          {renderContactCard(contact)}
+                        </span>
                       </span>
                       <span className={styles.preview}>
                         <span>{thread.subject}</span>
@@ -2057,7 +2250,7 @@ export default function FlowConsole({
                   className={styles.formatButton}
                   data-tooltip="Numbered list"
                   disabled={isSending}
-                  onClick={() => runEditorCommand('insertOrderedList')}
+                  onClick={() => insertEditorList(true)}
                   onMouseDown={event => event.preventDefault()}
                   type="button"
                 >
@@ -2068,7 +2261,7 @@ export default function FlowConsole({
                   className={styles.formatButton}
                   data-tooltip="Bulleted list"
                   disabled={isSending}
-                  onClick={() => runEditorCommand('insertUnorderedList')}
+                  onClick={() => insertEditorList(false)}
                   onMouseDown={event => event.preventDefault()}
                   type="button"
                 >

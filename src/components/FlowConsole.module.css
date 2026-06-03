@@ -27,6 +27,7 @@
 .toolbarButton,
 .readerIconButton,
 .composeIconButton,
+.contactIconButton,
 .formatButton,
 .footerToolButton,
 .sendOptionsButton,
@@ -51,6 +52,7 @@
 .toolbarButton:hover,
 .readerIconButton:hover,
 .composeIconButton:hover,
+.contactIconButton:hover,
 .formatButton:hover,
 .footerToolButton:hover,
 .sendOptionsButton:hover,
@@ -64,6 +66,7 @@
 .toolbarButton[data-tooltip]::after,
 .readerIconButton[data-tooltip]::after,
 .composeIconButton[data-tooltip]::after,
+.contactIconButton[data-tooltip]::after,
 .formatButton[data-tooltip]::after,
 .footerToolButton[data-tooltip]::after,
 .sendOptionsButton[data-tooltip]::after,
@@ -97,6 +100,7 @@
 .toolbarButton[data-tooltip]:hover::after,
 .readerIconButton[data-tooltip]:hover::after,
 .composeIconButton[data-tooltip]:hover::after,
+.contactIconButton[data-tooltip]:hover::after,
 .formatButton[data-tooltip]:hover::after,
 .footerToolButton[data-tooltip]:hover::after,
 .sendOptionsButton[data-tooltip]:hover::after,
@@ -108,6 +112,7 @@
 .toolbarButton[data-tooltip]:focus-visible::after,
 .readerIconButton[data-tooltip]:focus-visible::after,
 .composeIconButton[data-tooltip]:focus-visible::after,
+.contactIconButton[data-tooltip]:focus-visible::after,
 .formatButton[data-tooltip]:focus-visible::after,
 .footerToolButton[data-tooltip]:focus-visible::after,
 .sendOptionsButton[data-tooltip]:focus-visible::after,
@@ -116,6 +121,29 @@
 .accountButton[data-tooltip]:focus-visible::after,
 .rowStar[data-tooltip]:focus-visible::after {
   opacity: 1;
+  transform: translateX(-50%) translateY(0);
+}
+
+.formatButton[data-tooltip]::after,
+.footerToolButton[data-tooltip]::after,
+.sendOptionsButton[data-tooltip]::after,
+.colorTool[data-tooltip]::after,
+.composeIconButton[data-tooltip]::after {
+  top: auto;
+  bottom: calc(100% + 8px);
+  transform: translateX(-50%) translateY(2px);
+}
+
+.formatButton[data-tooltip]:hover::after,
+.footerToolButton[data-tooltip]:hover::after,
+.sendOptionsButton[data-tooltip]:hover::after,
+.colorTool[data-tooltip]:hover::after,
+.composeIconButton[data-tooltip]:hover::after,
+.formatButton[data-tooltip]:focus-visible::after,
+.footerToolButton[data-tooltip]:focus-visible::after,
+.sendOptionsButton[data-tooltip]:focus-visible::after,
+.colorTool[data-tooltip]:focus-visible::after,
+.composeIconButton[data-tooltip]:focus-visible::after {
   transform: translateX(-50%) translateY(0);
 }
 
@@ -601,6 +629,153 @@
 
 .sender {
   font-size: 14px;
+  overflow: visible;
+}
+
+.senderButton,
+.readerSenderButton {
+  display: inline-flex;
+  max-width: 100%;
+  min-width: 0;
+  align-items: baseline;
+  border: 0;
+  background: transparent;
+  color: inherit;
+  font: inherit;
+  font-weight: inherit;
+  padding: 0;
+  text-align: left;
+}
+
+.senderButton {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.readerSenderButton {
+  flex-wrap: wrap;
+  gap: 2px;
+}
+
+.contactHover {
+  position: relative;
+  display: inline-flex;
+  max-width: 100%;
+  min-width: 0;
+  align-items: center;
+}
+
+.contactCard {
+  position: absolute;
+  top: calc(100% + 10px);
+  left: 0;
+  z-index: 90;
+  display: grid;
+  width: min(420px, calc(100vw - 48px));
+  gap: 14px;
+  border: 1px solid #dadce0;
+  border-radius: 8px;
+  background: #ffffff;
+  box-shadow:
+    0 2px 6px rgba(60, 64, 67, 0.2),
+    0 12px 36px rgba(60, 64, 67, 0.24);
+  color: #202124;
+  font-weight: 400;
+  opacity: 0;
+  padding: 16px;
+  pointer-events: none;
+  transform: translateY(-4px);
+  transition:
+    opacity 0.12s ease,
+    transform 0.12s ease;
+}
+
+.contactHover:hover .contactCard,
+.contactHover:focus-within .contactCard {
+  opacity: 1;
+  pointer-events: auto;
+  transform: translateY(0);
+}
+
+.contactCardTop {
+  display: grid;
+  min-width: 0;
+  grid-template-columns: 72px minmax(0, 1fr) 42px;
+  align-items: center;
+  gap: 14px;
+}
+
+.contactAvatar {
+  display: grid;
+  width: 72px;
+  height: 72px;
+  place-items: center;
+  border-radius: 999px;
+  background: #93c5fd;
+  color: #2563eb;
+  font-size: 32px;
+  font-weight: 800;
+}
+
+.contactIdentity {
+  display: grid;
+  min-width: 0;
+  gap: 4px;
+}
+
+.contactIdentity strong,
+.contactIdentity span {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.contactIdentity strong {
+  color: #202124;
+  font-size: 22px;
+  font-weight: 500;
+}
+
+.contactIdentity span {
+  color: #3c4043;
+  font-size: 14px;
+}
+
+.contactActions {
+  display: grid;
+  grid-template-columns: minmax(150px, 1fr) 46px 46px 46px;
+  align-items: center;
+  gap: 8px;
+}
+
+.contactMailButton {
+  display: inline-flex;
+  height: 42px;
+  align-items: center;
+  justify-content: center;
+  gap: 10px;
+  border: 0;
+  border-radius: 999px;
+  background: #bae6fd;
+  color: #082f49;
+  font-size: 14px;
+  font-weight: 700;
+  padding: 0 18px;
+}
+
+.contactMailButton:hover {
+  background: #7dd3fc;
+}
+
+.contactIconButton {
+  width: 42px;
+  height: 42px;
+  border: 1px solid #dadce0;
+  border-radius: 999px;
+  background: #ffffff;
+  color: #5f6368;
 }
 
 .preview {
@@ -1099,6 +1274,16 @@
   padding-left: 12px;
 }
 
+.composeBody ul,
+.composeBody ol {
+  margin: 8px 0;
+  padding-left: 28px;
+}
+
+.composeBody li {
+  margin: 4px 0;
+}
+
 .composeBody hr {
   border: 0;
   border-top: 1px solid #dadce0;
@@ -1116,9 +1301,14 @@
   display: flex;
   min-width: 0;
   overflow-x: auto;
+  scrollbar-width: none;
   gap: 8px;
   border-top: 1px solid #f1f3f4;
   padding: 8px 15px;
+}
+
+.attachmentStrip::-webkit-scrollbar {
+  display: none;
 }
 
 .attachmentChip {
@@ -1173,15 +1363,20 @@
 .formatToolbar {
   display: flex;
   min-width: 0;
-  width: max-content;
+  width: fit-content;
   max-width: calc(100% - 30px);
   align-items: center;
+  flex-wrap: wrap;
   gap: 3px;
-  overflow-x: auto;
-  border-radius: 999px;
+  overflow: visible;
+  border-radius: 24px;
   background: #eef4fb;
   margin: 8px 15px 4px;
   padding: 6px 8px;
+}
+
+.formatToolbar::-webkit-scrollbar {
+  display: none;
 }
 
 .formatButton,
