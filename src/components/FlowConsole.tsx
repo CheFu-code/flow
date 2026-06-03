@@ -1,29 +1,59 @@
 'use client';
 
 import {
+  AtSign,
   ArrowLeft,
+  Bold,
+  CaseSensitive,
+  ChevronDown,
   CircleHelp,
   Clock3,
+  EllipsisVertical,
   FileText,
   Grid3X3,
+  Image as ImageIcon,
+  Italic,
   Inbox,
   KeyRound,
+  Link2,
+  List,
+  ListIndentDecrease,
+  ListIndentIncrease,
+  ListOrdered,
   Loader2,
+  LockKeyhole,
   LogOut,
   Mail,
+  Maximize2,
   Menu,
+  Minimize2,
+  Minus,
+  Palette,
+  Paperclip,
+  PenLine,
   Pencil,
+  Quote,
+  Redo2,
+  RemoveFormatting,
   Search,
   Send,
   Settings,
   SlidersHorizontal,
+  Smile,
+  Sparkles,
   Star,
+  Strikethrough,
+  Triangle,
   Trash2,
+  Type,
+  Underline,
+  Undo2,
   UserCircle,
   X,
 } from 'lucide-react';
 import type {
   ChangeEvent,
+  ClipboardEvent,
   FormEvent,
   KeyboardEvent,
   MouseEvent,
@@ -89,6 +119,16 @@ type ComposeFields = {
   from: string;
   subject: string;
   to: string;
+};
+
+type ComposeAttachment = {
+  content: string;
+  contentId?: string;
+  contentType?: string;
+  filename: string;
+  id: string;
+  inline?: boolean;
+  size: number;
 };
 
 type StatusMessage = {
@@ -227,6 +267,82 @@ const initialCompose: ComposeFields = {
 };
 
 const defaultReactionEmoji = '\u{1F44D}';
+const maxAttachmentBytes = 24 * 1024 * 1024;
+const composeEmojis = ['😀', '😂', '😊', '🙏', '👍', '🎉', '🚀', '❤️'];
+
+const fontFamilies = [
+  'Sans Serif',
+  'Serif',
+  'Monospace',
+  'Arial',
+  'Georgia',
+  'Tahoma',
+  'Verdana',
+];
+
+const fontSizes = [
+  { label: 'Small', value: '2' },
+  { label: 'Normal', value: '3' },
+  { label: 'Large', value: '4' },
+  { label: 'Huge', value: '5' },
+];
+
+function escapeEditorHtml(value: string) {
+  return value.replace(/[&<>"']/g, char => {
+    const map: Record<string, string> = {
+      '&': '&amp;',
+      '<': '&lt;',
+      '>': '&gt;',
+      '"': '&quot;',
+      "'": '&#039;',
+    };
+
+    return map[char];
+  });
+}
+
+function formatFileSize(value: number) {
+  if (value < 1024 * 1024) return `${Math.max(1, Math.round(value / 1024))} KB`;
+  return `${(value / 1024 / 1024).toFixed(1)} MB`;
+}
+
+function newComposeId(prefix: string) {
+  return typeof crypto !== 'undefined' && 'randomUUID' in crypto
+    ? `${prefix}-${crypto.randomUUID()}`
+    : `${prefix}-${Date.now()}-${Math.random().toString(36).slice(2)}`;
+}
+
+function normalizeUrl(value: string) {
+  const trimmed = value.trim();
+  if (!trimmed) return '';
+  if (/^(https?:|mailto:|tel:)/i.test(trimmed)) return trimmed;
+  return `https://${trimmed}`;
+}
+
+function fileToComposeAttachment(file: File, inline = false) {
+  return new Promise<ComposeAttachment>((resolve, reject) => {
+    const reader = new FileReader();
+
+    reader.onerror = () => reject(new Error(`${file.name} could not be read.`));
+    reader.onload = () => {
+      const result = String(reader.result || '');
+      const content = result.includes(',') ? result.split(',')[1] : result;
+      const id = newComposeId('attachment');
+
+      resolve({
+        content,
+        contentId: inline ? newComposeId('flow-inline').slice(0, 120) : undefined,
+        contentType: file.type || undefined,
+        filename: file.name || 'attachment',
+        id,
+        inline,
+        size: file.size,
+      });
+    };
+
+    reader.readAsDataURL(file);
+  });
+}
 
 function formatListDate(value: string) {
   return new Intl.DateTimeFormat('en', {
@@ -483,10 +599,18 @@ export default function FlowConsole({
   onLock,
 }: FlowConsoleProps) {
   const accountMenuRef = useRef<HTMLDivElement | null>(null);
+  const attachmentInputRef = useRef<HTMLInputElement | null>(null);
+  const composeEditorRef = useRef<HTMLDivElement | null>(null);
+  const composeFormRef = useRef<HTMLFormElement | null>(null);
   const deleteLockRef = useRef(false);
+  const imageInputRef = useRef<HTMLInputElement | null>(null);
   const sendLockRef = useRef(false);
   const [accountOpen, setAccountOpen] = useState(false);
   const [activeFolder, setActiveFolder] = useState<MailFolder>('inbox');
+  const [composeAttachments, setComposeAttachments] = useState<
+    ComposeAttachment[]
+  >([]);
+  const [composeExpanded, setComposeExpanded] = useState(false);
   const [composeFields, setComposeFields] =
     useState<ComposeFields>(initialCompose);
   const [composeOpen, setComposeOpen] = useState(false);
@@ -499,10 +623,14 @@ export default function FlowConsole({
   const [isDeleting, setIsDeleting] = useState(false);
   const [isLoadingMessages, setIsLoadingMessages] = useState(true);
   const [isSending, setIsSending] = useState(false);
+  const [emojiPickerOpen, setEmojiPickerOpen] = useState(false);
+  const [formatToolbarOpen, setFormatToolbarOpen] = useState(true);
+  const [moreToolsOpen, setMoreToolsOpen] = useState(false);
   const [messages, setMessages] = useState<MailMessage[]>([]);
   const [query, setQuery] = useState('');
   const [recipientEmails, setRecipientEmails] = useState<string[]>([]);
   const [refreshSeq, setRefreshSeq] = useState(0);
+  const [sendOptionsOpen, setSendOptionsOpen] = useState(false);
   const [selectedIds, setSelectedIds] = useState<string[]>([]);
   const [selectedMessageId, setSelectedMessageId] = useState<string | null>(
     null,
@@ -557,6 +685,14 @@ export default function FlowConsole({
       ]),
     ],
     [composeFields.to, recipientEmails],
+  );
+  const totalAttachmentBytes = useMemo(
+    () =>
+      composeAttachments.reduce(
+        (total, attachment) => total + attachment.size,
+        0,
+      ),
+    [composeAttachments],
   );
   const sessionExpiry = formatSessionExpiry(accessSession.expiresAt);
 
@@ -896,6 +1032,163 @@ export default function FlowConsole({
       }));
     };
 
+  const currentComposeBody = () =>
+    composeEditorRef.current?.innerHTML || composeFields.body;
+
+  const syncComposeBody = () => {
+    const body = currentComposeBody();
+    setComposeFields(current => ({ ...current, body }));
+  };
+
+  const focusComposeEditor = () => {
+    composeEditorRef.current?.focus();
+  };
+
+  const runEditorCommand = (command: string, value?: string) => {
+    if (isSending) return;
+    focusComposeEditor();
+    document.execCommand(command, false, value);
+    syncComposeBody();
+  };
+
+  const insertEditorHtml = (html: string) => {
+    if (isSending) return;
+    focusComposeEditor();
+    document.execCommand('insertHTML', false, html);
+    syncComposeBody();
+  };
+
+  const insertEditorText = (text: string) => {
+    if (isSending) return;
+    focusComposeEditor();
+    document.execCommand('insertText', false, text);
+    syncComposeBody();
+  };
+
+  const handleEditorPaste = (event: ClipboardEvent<HTMLDivElement>) => {
+    event.preventDefault();
+    insertEditorText(event.clipboardData.getData('text/plain'));
+  };
+
+  const promptForLink = () => {
+    const rawUrl = window.prompt('Paste a link URL');
+    const url = rawUrl ? normalizeUrl(rawUrl) : '';
+    if (!url) return;
+
+    const selection = window.getSelection();
+    if (selection?.toString()) {
+      runEditorCommand('createLink', url);
+      return;
+    }
+
+    insertEditorHtml(
+      `<a href="${escapeEditorHtml(url)}">${escapeEditorHtml(url)}</a>`,
+    );
+  };
+
+  const insertDriveLink = () => {
+    const rawUrl = window.prompt('Paste the Drive or file URL');
+    const url = rawUrl ? normalizeUrl(rawUrl) : '';
+    if (!url) return;
+
+    insertEditorHtml(
+      `<a href="${escapeEditorHtml(url)}">Attached file</a>`,
+    );
+  };
+
+  const insertConfidentialNotice = () => {
+    insertEditorHtml(
+      '<div style="border-left:3px solid #0f766e;padding-left:12px;color:#0f766e;"><strong>Confidential</strong><br />This message is intended only for its recipients. Please do not share it without permission.</div><br />',
+    );
+  };
+
+  const insertSignature = () => {
+    insertEditorHtml('<br /><br />Best regards,<br />CheFu Inc');
+  };
+
+  const insertDivider = () => {
+    insertEditorHtml('<hr /><br />');
+  };
+
+  const insertVariable = (name: string) => {
+    insertEditorText(`{{${name}}}`);
+    setMoreToolsOpen(false);
+  };
+
+  const clearEditorFormatting = () => {
+    runEditorCommand('removeFormat');
+    runEditorCommand('unlink');
+  };
+
+  const removeAllFormatting = () => {
+    const text = composeEditorRef.current?.innerText || '';
+    if (composeEditorRef.current) {
+      composeEditorRef.current.textContent = text;
+    }
+    syncComposeBody();
+    setMoreToolsOpen(false);
+  };
+
+  const addFilesToCompose = async (files: File[], inline = false) => {
+    if (!files.length) return;
+
+    const nextSize = files.reduce((total, file) => total + file.size, 0);
+    if (totalAttachmentBytes + nextSize > maxAttachmentBytes) {
+      setStatus({
+        kind: 'info',
+        text: 'Attachments must stay under 24 MB before encoding.',
+      });
+      return;
+    }
+
+    try {
+      const nextAttachments = await Promise.all(
+        files.map(file => fileToComposeAttachment(file, inline)),
+      );
+
+      setComposeAttachments(current => [...current, ...nextAttachments]);
+
+      if (inline) {
+        nextAttachments.forEach(attachment => {
+          insertEditorHtml(
+            `<img src="cid:${attachment.contentId}" alt="${escapeEditorHtml(
+              attachment.filename,
+            )}" style="max-width:100%;border-radius:8px;" /><br />`,
+          );
+        });
+      }
+
+      setStatus({
+        kind: 'success',
+        text: `${files.length} file${files.length === 1 ? '' : 's'} added.`,
+      });
+    } catch (error) {
+      setStatus({
+        kind: 'info',
+        text:
+          error instanceof Error ? error.message : 'File could not be added.',
+      });
+    }
+  };
+
+  const addAttachmentFiles = (event: ChangeEvent<HTMLInputElement>) => {
+    const files = Array.from(event.target.files || []);
+    event.target.value = '';
+    void addFilesToCompose(files);
+  };
+
+  const addInlineImages = (event: ChangeEvent<HTMLInputElement>) => {
+    const files = Array.from(event.target.files || []);
+    event.target.value = '';
+    void addFilesToCompose(files, true);
+  };
+
+  const removeAttachment = (id: string) => {
+    setComposeAttachments(current =>
+      current.filter(attachment => attachment.id !== id),
+    );
+  };
+
   const addRecipients = () => {
     const recipients = parseRecipients(composeFields.to);
 
@@ -925,20 +1218,29 @@ export default function FlowConsole({
 
   const resetCompose = () => {
     setComposeFields(initialCompose);
+    setComposeAttachments([]);
+    setComposeExpanded(false);
+    setEmojiPickerOpen(false);
+    setMoreToolsOpen(false);
     setRecipientEmails([]);
+    setSendOptionsOpen(false);
+    if (composeEditorRef.current) composeEditorRef.current.innerHTML = '';
   };
 
   const hasDraftContent =
     composeRecipients.length > 0 ||
     composeFields.subject.trim() ||
-    composeFields.body.trim();
+    composeFields.body.trim() ||
+    composeAttachments.length > 0;
 
   const saveDraftAndClose = async () => {
+    const body = currentComposeBody();
+
     if (hasDraftContent) {
       try {
         await fetch(apiUrl('/flow/drafts'), {
           body: JSON.stringify({
-            body: composeFields.body,
+            body,
             from: composeFrom,
             subject: composeFields.subject,
             to: composeRecipients,
@@ -971,6 +1273,7 @@ export default function FlowConsole({
     if (sendLockRef.current) return;
 
     const recipients = composeRecipients;
+    const body = currentComposeBody();
 
     if (!recipients.length) {
       setStatus({ kind: 'info', text: 'Enter at least one valid recipient.' });
@@ -983,8 +1286,16 @@ export default function FlowConsole({
       const response = await fetch(apiUrl('/flow/send'), {
         body: JSON.stringify({
           action: 'campaign',
+          attachments: composeAttachments.map(attachment => ({
+            content: attachment.content,
+            contentId: attachment.contentId,
+            contentType: attachment.contentType,
+            filename: attachment.filename,
+            size: attachment.size,
+          })),
+          bodyFormat: 'html',
           from: composeFrom,
-          html: composeFields.body,
+          html: body,
           recipients: recipients.map(email => ({
             email,
             firstName: email.split('@')[0],
@@ -1448,19 +1759,57 @@ export default function FlowConsole({
           className={styles.composeOverlay}
           role="dialog"
         >
-          <form className={styles.composeDialog} onSubmit={submitCompose}>
+          <form
+            className={
+              composeExpanded
+                ? `${styles.composeDialog} ${styles.composeDialogExpanded}`
+                : styles.composeDialog
+            }
+            onSubmit={submitCompose}
+            ref={composeFormRef}
+          >
             <div className={styles.composeHeader}>
               <strong>New Message</strong>
-              <button
-                aria-label="Close compose"
-                className={styles.composeIconButton}
-                data-tooltip="Save and close"
-                disabled={isSending}
-                onClick={saveDraftAndClose}
-                type="button"
-              >
-                <X size={18} />
-              </button>
+              <div className={styles.composeHeaderActions}>
+                <button
+                  aria-label="Minimize compose"
+                  className={styles.composeIconButton}
+                  data-tooltip="Minimize"
+                  disabled={isSending}
+                  onClick={saveDraftAndClose}
+                  type="button"
+                >
+                  <Minus size={17} />
+                </button>
+                <button
+                  aria-label={
+                    composeExpanded ? 'Exit full screen' : 'Full screen'
+                  }
+                  className={styles.composeIconButton}
+                  data-tooltip={
+                    composeExpanded ? 'Exit full screen' : 'Full screen'
+                  }
+                  disabled={isSending}
+                  onClick={() => setComposeExpanded(value => !value)}
+                  type="button"
+                >
+                  {composeExpanded ? (
+                    <Minimize2 size={17} />
+                  ) : (
+                    <Maximize2 size={17} />
+                  )}
+                </button>
+                <button
+                  aria-label="Close compose"
+                  className={styles.composeIconButton}
+                  data-tooltip="Save and close"
+                  disabled={isSending}
+                  onClick={saveDraftAndClose}
+                  type="button"
+                >
+                  <X size={18} />
+                </button>
+              </div>
             </div>
 
             <label className={styles.composeLine}>
@@ -1537,29 +1886,431 @@ export default function FlowConsole({
                 value={composeFields.subject}
               />
             </label>
-            <textarea
+            <div
               aria-label="Message body"
               className={styles.composeBody}
-              disabled={isSending}
-              onChange={updateComposeField('body')}
-              value={composeFields.body}
+              contentEditable={!isSending}
+              data-placeholder="Write your message"
+              onInput={syncComposeBody}
+              onPaste={handleEditorPaste}
+              ref={composeEditorRef}
+              role="textbox"
+              suppressContentEditableWarning
             />
 
-            <div className={styles.composeFooter}>
-              <button
-                className={styles.sendButton}
-                disabled={isSending}
-                type="submit"
+            {composeAttachments.length ? (
+              <div className={styles.attachmentStrip}>
+                {composeAttachments.map(attachment => (
+                  <div className={styles.attachmentChip} key={attachment.id}>
+                    <FileText size={15} />
+                    <span>
+                      {attachment.filename}
+                      <small>
+                        {attachment.inline ? 'Inline image' : 'Attachment'} ·{' '}
+                        {formatFileSize(attachment.size)}
+                      </small>
+                    </span>
+                    <button
+                      aria-label={`Remove ${attachment.filename}`}
+                      className={styles.attachmentRemove}
+                      disabled={isSending}
+                      onClick={() => removeAttachment(attachment.id)}
+                      type="button"
+                    >
+                      <X size={14} />
+                    </button>
+                  </div>
+                ))}
+              </div>
+            ) : null}
+
+            {formatToolbarOpen ? (
+              <div
+                className={styles.formatToolbar}
+                aria-label="Formatting toolbar"
               >
-                {isSending ? (
-                  <>
-                    <Loader2 className={styles.spin} size={16} />
-                    Sending
-                  </>
-                ) : (
-                  'Send'
-                )}
-              </button>
+                <button
+                  aria-label="Undo"
+                  className={styles.formatButton}
+                  data-tooltip="Undo"
+                  disabled={isSending}
+                  onClick={() => runEditorCommand('undo')}
+                  onMouseDown={event => event.preventDefault()}
+                  type="button"
+                >
+                  <Undo2 size={17} />
+                </button>
+                <button
+                  aria-label="Redo"
+                  className={styles.formatButton}
+                  data-tooltip="Redo"
+                  disabled={isSending}
+                  onClick={() => runEditorCommand('redo')}
+                  onMouseDown={event => event.preventDefault()}
+                  type="button"
+                >
+                  <Redo2 size={17} />
+                </button>
+                <span className={styles.formatDivider} />
+                <label className={styles.formatSelectWrap}>
+                  <span>Font</span>
+                  <select
+                    aria-label="Font"
+                    className={styles.formatSelect}
+                    defaultValue="Sans Serif"
+                    disabled={isSending}
+                    onChange={event =>
+                      runEditorCommand('fontName', event.target.value)
+                    }
+                  >
+                    {fontFamilies.map(font => (
+                      <option key={font} value={font}>
+                        {font}
+                      </option>
+                    ))}
+                  </select>
+                </label>
+                <label className={styles.formatSelectWrap}>
+                  <span>Size</span>
+                  <select
+                    aria-label="Text size"
+                    className={styles.formatSelect}
+                    defaultValue="3"
+                    disabled={isSending}
+                    onChange={event =>
+                      runEditorCommand('fontSize', event.target.value)
+                    }
+                  >
+                    {fontSizes.map(size => (
+                      <option key={size.value} value={size.value}>
+                        {size.label}
+                      </option>
+                    ))}
+                  </select>
+                </label>
+                <span className={styles.formatDivider} />
+                <button
+                  aria-label="Bold"
+                  className={styles.formatButton}
+                  data-tooltip="Bold"
+                  disabled={isSending}
+                  onClick={() => runEditorCommand('bold')}
+                  onMouseDown={event => event.preventDefault()}
+                  type="button"
+                >
+                  <Bold size={18} />
+                </button>
+                <button
+                  aria-label="Italic"
+                  className={styles.formatButton}
+                  data-tooltip="Italic"
+                  disabled={isSending}
+                  onClick={() => runEditorCommand('italic')}
+                  onMouseDown={event => event.preventDefault()}
+                  type="button"
+                >
+                  <Italic size={18} />
+                </button>
+                <button
+                  aria-label="Underline"
+                  className={styles.formatButton}
+                  data-tooltip="Underline"
+                  disabled={isSending}
+                  onClick={() => runEditorCommand('underline')}
+                  onMouseDown={event => event.preventDefault()}
+                  type="button"
+                >
+                  <Underline size={18} />
+                </button>
+                <label
+                  aria-label="Text color"
+                  className={styles.colorTool}
+                  data-tooltip="Text color"
+                >
+                  <Palette size={17} />
+                  <input
+                    aria-label="Text color"
+                    disabled={isSending}
+                    onChange={event =>
+                      runEditorCommand('foreColor', event.target.value)
+                    }
+                    type="color"
+                  />
+                </label>
+                <span className={styles.formatDivider} />
+                <label className={styles.formatSelectWrap}>
+                  <span>Align</span>
+                  <select
+                    aria-label="Text alignment"
+                    className={styles.formatSelect}
+                    defaultValue="justifyLeft"
+                    disabled={isSending}
+                    onChange={event => runEditorCommand(event.target.value)}
+                  >
+                    <option value="justifyLeft">Left</option>
+                    <option value="justifyCenter">Center</option>
+                    <option value="justifyRight">Right</option>
+                  </select>
+                </label>
+                <button
+                  aria-label="Numbered list"
+                  className={styles.formatButton}
+                  data-tooltip="Numbered list"
+                  disabled={isSending}
+                  onClick={() => runEditorCommand('insertOrderedList')}
+                  onMouseDown={event => event.preventDefault()}
+                  type="button"
+                >
+                  <ListOrdered size={18} />
+                </button>
+                <button
+                  aria-label="Bulleted list"
+                  className={styles.formatButton}
+                  data-tooltip="Bulleted list"
+                  disabled={isSending}
+                  onClick={() => runEditorCommand('insertUnorderedList')}
+                  onMouseDown={event => event.preventDefault()}
+                  type="button"
+                >
+                  <List size={18} />
+                </button>
+                <button
+                  aria-label="Decrease indent"
+                  className={styles.formatButton}
+                  data-tooltip="Decrease indent"
+                  disabled={isSending}
+                  onClick={() => runEditorCommand('outdent')}
+                  onMouseDown={event => event.preventDefault()}
+                  type="button"
+                >
+                  <ListIndentDecrease size={18} />
+                </button>
+                <button
+                  aria-label="Increase indent"
+                  className={styles.formatButton}
+                  data-tooltip="Increase indent"
+                  disabled={isSending}
+                  onClick={() => runEditorCommand('indent')}
+                  onMouseDown={event => event.preventDefault()}
+                  type="button"
+                >
+                  <ListIndentIncrease size={18} />
+                </button>
+                <button
+                  aria-label="Quote"
+                  className={styles.formatButton}
+                  data-tooltip="Quote"
+                  disabled={isSending}
+                  onClick={() => runEditorCommand('formatBlock', 'blockquote')}
+                  onMouseDown={event => event.preventDefault()}
+                  type="button"
+                >
+                  <Quote size={18} />
+                </button>
+                <button
+                  aria-label="Strikethrough"
+                  className={styles.formatButton}
+                  data-tooltip="Strikethrough"
+                  disabled={isSending}
+                  onClick={() => runEditorCommand('strikeThrough')}
+                  onMouseDown={event => event.preventDefault()}
+                  type="button"
+                >
+                  <Strikethrough size={18} />
+                </button>
+                <button
+                  aria-label="Remove formatting"
+                  className={styles.formatButton}
+                  data-tooltip="Remove formatting"
+                  disabled={isSending}
+                  onClick={clearEditorFormatting}
+                  onMouseDown={event => event.preventDefault()}
+                  type="button"
+                >
+                  <RemoveFormatting size={18} />
+                </button>
+              </div>
+            ) : null}
+
+            <div className={styles.composeFooter}>
+              <div className={styles.composeFooterLeft}>
+                <div className={styles.sendSplitWrap}>
+                  <div className={styles.sendSplit}>
+                    <button
+                      className={styles.sendButton}
+                      disabled={isSending}
+                      type="submit"
+                    >
+                      {isSending ? (
+                        <>
+                          <Loader2 className={styles.spin} size={16} />
+                          Sending
+                        </>
+                      ) : (
+                        'Send'
+                      )}
+                    </button>
+                    <button
+                      aria-label="Send options"
+                      className={styles.sendOptionsButton}
+                      data-tooltip="Send options"
+                      disabled={isSending}
+                      onClick={() => setSendOptionsOpen(open => !open)}
+                      type="button"
+                    >
+                      <ChevronDown size={17} />
+                    </button>
+                  </div>
+                  {sendOptionsOpen ? (
+                    <div className={styles.composeMenu}>
+                      <button
+                        onClick={() => composeFormRef.current?.requestSubmit()}
+                        type="button"
+                      >
+                        Send now
+                      </button>
+                      <button onClick={saveDraftAndClose} type="button">
+                        Save draft and close
+                      </button>
+                    </div>
+                  ) : null}
+                </div>
+                <button
+                  aria-label="Formatting options"
+                  className={
+                    formatToolbarOpen
+                      ? `${styles.footerToolButton} ${styles.footerToolActive}`
+                      : styles.footerToolButton
+                  }
+                  data-tooltip="Formatting options"
+                  disabled={isSending}
+                  onClick={() => setFormatToolbarOpen(open => !open)}
+                  type="button"
+                >
+                  <CaseSensitive size={19} />
+                </button>
+                <button
+                  aria-label="Attach files"
+                  className={styles.footerToolButton}
+                  data-tooltip="Attach files"
+                  disabled={isSending}
+                  onClick={() => attachmentInputRef.current?.click()}
+                  type="button"
+                >
+                  <Paperclip size={19} />
+                </button>
+                <button
+                  aria-label="Insert link"
+                  className={styles.footerToolButton}
+                  data-tooltip="Insert link"
+                  disabled={isSending}
+                  onClick={promptForLink}
+                  type="button"
+                >
+                  <Link2 size={19} />
+                </button>
+                <div className={styles.footerMenuWrap}>
+                  <button
+                    aria-label="Insert emoji"
+                    className={styles.footerToolButton}
+                    data-tooltip="Insert emoji"
+                    disabled={isSending}
+                    onClick={() => setEmojiPickerOpen(open => !open)}
+                    type="button"
+                  >
+                    <Smile size={19} />
+                  </button>
+                  {emojiPickerOpen ? (
+                    <div className={styles.emojiMenu}>
+                      {composeEmojis.map(emoji => (
+                        <button
+                          aria-label={`Insert ${emoji}`}
+                          key={emoji}
+                          onClick={() => {
+                            insertEditorText(emoji);
+                            setEmojiPickerOpen(false);
+                          }}
+                          type="button"
+                        >
+                          {emoji}
+                        </button>
+                      ))}
+                    </div>
+                  ) : null}
+                </div>
+                <button
+                  aria-label="Insert Drive link"
+                  className={styles.footerToolButton}
+                  data-tooltip="Insert Drive link"
+                  disabled={isSending}
+                  onClick={insertDriveLink}
+                  type="button"
+                >
+                  <Triangle size={18} />
+                </button>
+                <button
+                  aria-label="Insert photo"
+                  className={styles.footerToolButton}
+                  data-tooltip="Insert photo"
+                  disabled={isSending}
+                  onClick={() => imageInputRef.current?.click()}
+                  type="button"
+                >
+                  <ImageIcon size={19} />
+                </button>
+                <button
+                  aria-label="Confidential mode"
+                  className={styles.footerToolButton}
+                  data-tooltip="Confidential mode"
+                  disabled={isSending}
+                  onClick={insertConfidentialNotice}
+                  type="button"
+                >
+                  <LockKeyhole size={19} />
+                </button>
+                <button
+                  aria-label="Insert signature"
+                  className={styles.footerToolButton}
+                  data-tooltip="Insert signature"
+                  disabled={isSending}
+                  onClick={insertSignature}
+                  type="button"
+                >
+                  <PenLine size={19} />
+                </button>
+                <div className={styles.footerMenuWrap}>
+                  <button
+                    aria-label="More options"
+                    className={styles.footerToolButton}
+                    data-tooltip="More options"
+                    disabled={isSending}
+                    onClick={() => setMoreToolsOpen(open => !open)}
+                    type="button"
+                  >
+                    <EllipsisVertical size={19} />
+                  </button>
+                  {moreToolsOpen ? (
+                    <div className={styles.composeMenu}>
+                      <button onClick={() => insertVariable('firstName')} type="button">
+                        <AtSign size={15} />
+                        Insert first name
+                      </button>
+                      <button onClick={() => insertVariable('company')} type="button">
+                        <Sparkles size={15} />
+                        Insert company
+                      </button>
+                      <button onClick={insertDivider} type="button">
+                        <Minus size={15} />
+                        Insert divider
+                      </button>
+                      <button onClick={removeAllFormatting} type="button">
+                        <Type size={15} />
+                        Plain text cleanup
+                      </button>
+                    </div>
+                  ) : null}
+                </div>
+              </div>
               <button
                 aria-label="Discard draft"
                 className={styles.composeIconButton}
@@ -1571,6 +2322,21 @@ export default function FlowConsole({
                 <Trash2 size={19} />
               </button>
             </div>
+            <input
+              className={styles.hiddenFileInput}
+              multiple
+              onChange={addAttachmentFiles}
+              ref={attachmentInputRef}
+              type="file"
+            />
+            <input
+              accept="image/*"
+              className={styles.hiddenFileInput}
+              multiple
+              onChange={addInlineImages}
+              ref={imageInputRef}
+              type="file"
+            />
           </form>
         </div>
       ) : null}
