@@ -1,0 +1,62 @@
+{
+  "background_color": "#ffffff",
+  "description": "Enter a registered Flow access key.",
+  "dir": "ltr",
+  "display": "standalone",
+  "name": "Flow",
+  "orientation": "any",
+  "scope": "/",
+  "short_name": "Flow",
+  "start_url": "/",
+  "theme_color": "#ffffff",
+  "icons": [
+    {
+      "src": "https://flow.chefuinc.com/favicon.ico?favicon.0x3dzn~oxb6tn.ico",
+      "type": "image/x-icon",
+      "sizes": "256x256",
+      "isSquare": true,
+      "isPng": false,
+      "isWebp": false,
+      "isJpg": false,
+      "width": 256,
+      "is512x512": false,
+      "is256x256": true,
+      "is192x192": false
+    },
+    {
+      "src": "https://flow.chefuinc.com/icon.svg",
+      "isSquare": false,
+      "isPng": false,
+      "isWebp": false,
+      "isJpg": false,
+      "width": 0,
+      "is512x512": false,
+      "is256x256": false,
+      "is192x192": false
+    },
+    {
+      "src": "https://flow.chefuinc.com/favicon.ico",
+      "type": "image/x-icon",
+      "isSquare": false,
+      "isPng": false,
+      "isWebp": false,
+      "isJpg": false,
+      "width": 0,
+      "is512x512": false,
+      "is256x256": false,
+      "is192x192": false
+    }
+  ],
+  "lang": "en",
+  "related_applications": [
+    {
+      "platform": "play",
+      "url": "https://play.google.com/store/apps/details?id=com.chefuinc.flow",
+      "id": "com.chefuinc.flow"
+    }
+  ],
+  "categories": [
+    "social",
+    "social networking"
+  ]
+}
