@@ -37,6 +37,8 @@ export function useAsync<T>(
   }, [asyncFunction]);
 
   useEffect(() => {
+    mountedRef.current = true;
+
     if (immediate) {
       execute();
     }

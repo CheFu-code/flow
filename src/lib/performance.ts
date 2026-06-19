@@ -24,6 +24,15 @@ export function measurePerformance(name: string, fn: () => void): number {
     console.log(`[Performance] ${name}: ${duration.toFixed(2)}ms`);
   }
 
+  // Update metrics based on the measurement name
+  if (name.toLowerCase().includes('render')) {
+    metrics.renderTime = duration;
+  } else if (name.toLowerCase().includes('search')) {
+    metrics.searchTime = duration;
+  } else if (name.toLowerCase().includes('api')) {
+    metrics.apiTime = duration;
+  }
+
   return duration;
 }
 
@@ -40,9 +49,18 @@ export async function measureAsyncPerformance<T>(
     console.log(`[Performance] ${name}: ${duration.toFixed(2)}ms`);
   }
 
+  // Update metrics based on the measurement name
+  if (name.toLowerCase().includes('render')) {
+    metrics.renderTime = duration;
+  } else if (name.toLowerCase().includes('search')) {
+    metrics.searchTime = duration;
+  } else if (name.toLowerCase().includes('api')) {
+    metrics.apiTime = duration;
+  }
+
   return result;
 }
 
 export function reportMetrics(): PerformanceMetrics {
-  return metrics;
+  return { ...metrics };
 }
