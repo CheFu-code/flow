@@ -157,12 +157,18 @@ export function renderReaderPrintDocument(thread: MailThread) {
 }
 
 function sanitizeReaderHtml(value: string) {
-  const body = extractBody(value)
-    .replace(/<!doctype[^>]*>/gi, '')
-    .replace(/<head[^>]*>[\s\S]*?<\/head>/gi, '')
-    .replace(unsafeTagPattern, '')
-    .replace(unsafeSelfClosingTagPattern, '')
-    .replace(/<!--[\s\S]*?-->/g, '');
+  let body = extractBody(value);
+  let previous: string;
+
+  do {
+    previous = body;
+    body = body
+      .replace(/<!doctype[^>]*>/gi, '')
+      .replace(/<head[^>]*>[\s\S]*?<\/head>/gi, '')
+      .replace(unsafeTagPattern, '')
+      .replace(unsafeSelfClosingTagPattern, '')
+      .replace(/<!--[\s\S]*?-->/g, '');
+  } while (body !== previous);
 
   return body.replace(tagPattern, (match, tagName, rawAttributes) => {
     const tag = String(tagName).toLowerCase();
