@@ -15,9 +15,26 @@ interface MessageRowProps {
   onSelect: (threadId: string) => void;
   onToggleSelect: (threadId: string) => void;
   onToggleStarred: (event: MouseEvent, messageId: string) => void;
-  onOpenCompose: (contact: any) => void;
-  onShowStatus: (tool: string, contact: any) => void;
+import { Star } from 'lucide-react';
+import type { MouseEvent } from 'react';
+import { memo } from 'react';
+import { ContactHoverCard } from '`@/components/flow-console/ContactHoverCard`';
+import type { ContactPreview } from '`@/lib/flow-console/types`';
+import { formatListDate, getMessageFolderLabel, sentTrackingKind, sentTrackingLabel } from '`@/lib/flow-console/format`';
+import { contactFromMessage } from '`@/lib/flow-console/mail`';
+import type { MailThread } from '`@/lib/flow-console/types`';
+import styles from './FlowConsole.module.css';
+
+interface MessageRowProps {
+  thread: MailThread;
+  isSelected: boolean;
+  onSelect: (threadId: string) => void;
+  onToggleSelect: (threadId: string) => void;
+  onToggleStarred: (event: MouseEvent, messageId: string) => void;
+  onOpenCompose: (contact: ContactPreview) => void;
+  onShowStatus: (tool: string, contact: ContactPreview) => void;
   onKeyDown: (event: React.KeyboardEvent<HTMLDivElement>, threadId: string) => void;
+}
 }
 
 export const MessageRow = memo(function MessageRow({
