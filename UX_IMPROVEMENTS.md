@@ -187,18 +187,23 @@ useEffect(() => {
     switch (e.key) {
       case 'j':
         openThreadByOffset(1); // Next
+        e.preventDefault();
         break;
       case 'k':
         openThreadByOffset(-1); // Previous
+        e.preventDefault();
         break;
       case 'c':
         setComposeOpen(true);
+        e.preventDefault();
         break;
       case 'r':
         selectedThread && replyToMessage(selectedThread.messages[0]);
+        e.preventDefault();
         break;
       case 'e':
         selectedThread && archiveOpenThread();
+        e.preventDefault();
         break;
     }
   };
