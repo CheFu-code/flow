@@ -40,7 +40,7 @@ export function useAsync<T>(
     mountedRef.current = true;
 
     if (immediate) {
-      execute();
+      void Promise.resolve().then(execute);
     }
 
     return () => {
