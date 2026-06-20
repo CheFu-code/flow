@@ -19,6 +19,8 @@ export function useAsync<T>(
   const mountedRef = useRef(true);
 
   const execute = useCallback(async () => {
+    if (!mountedRef.current) return;
+
     setState({ status: 'pending', data: null, error: null });
     try {
       const response = await asyncFunction();
@@ -37,13 +39,17 @@ export function useAsync<T>(
   }, [asyncFunction]);
 
   useEffect(() => {
+    let cancelled = false;
     mountedRef.current = true;
 
     if (immediate) {
-      execute();
+      void Promise.resolve().then(() => {
+        if (!cancelled) void execute();
+      });
     }
 
     return () => {
+      cancelled = true;
       mountedRef.current = false;
     };
   }, [execute, immediate]);
