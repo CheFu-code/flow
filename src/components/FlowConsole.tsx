@@ -69,6 +69,8 @@ import type {
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { FlowMark } from '@/components/brand/FlowMark';
 import { ContactHoverCard } from '@/components/flow-console/ContactHoverCard';
+import { MessageRow } from '@/components/MessageRow';
+import { useDebounce } from '@/hooks/useDebounce';
 import { apiUrl, flowHeaders } from '@/lib/api';
 import {
   composeEmojis,
@@ -89,7 +91,6 @@ import {
 } from '@/lib/flow-console/compose';
 import {
   formatFileSize,
-  formatListDate,
   formatMessageDate,
   formatSessionExpiry,
   getFolderLabel,
@@ -174,13 +175,17 @@ export default function FlowConsole({
   const [sidebarOpen, setSidebarOpen] = useState(true);
   const [status, setStatus] = useState<StatusMessage | null>(null);
 
+  const debouncedQuery = useDebounce(query, 140);
+
   const allThreads = useMemo(
     () => groupMessagesIntoThreads(messages),
     [messages],
   );
 
+  const selectedIdSet = useMemo(() => new Set(selectedIds), [selectedIds]);
+
   const visibleThreads = useMemo(() => {
-    const cleanQuery = query.trim().toLowerCase();
+    const cleanQuery = debouncedQuery.trim().toLowerCase();
 
     return allThreads.filter(thread => {
       if (!cleanQuery) return true;
@@ -198,7 +203,7 @@ export default function FlowConsole({
         .toLowerCase()
         .includes(cleanQuery);
     });
-  }, [allThreads, query]);
+  }, [allThreads, debouncedQuery]);
 
   const selectedThread = useMemo(
     () => allThreads.find(thread => thread.id === selectedMessageId) || null,
@@ -207,7 +212,7 @@ export default function FlowConsole({
 
   const allVisibleSelected =
     visibleThreads.length > 0 &&
-    visibleThreads.every(thread => selectedIds.includes(thread.id));
+    visibleThreads.every(thread => selectedIdSet.has(thread.id));
   const selectedThreadIndex = visibleThreads.findIndex(
     thread => thread.id === selectedMessageId,
   );
@@ -243,6 +248,14 @@ export default function FlowConsole({
     [composeAttachments],
   );
   const sessionExpiry = formatSessionExpiry(accessSession.expiresAt);
+  const unreadCount = useMemo(
+    () => allThreads.filter(thread => thread.unread).length,
+    [allThreads],
+  );
+  const starredCount = useMemo(
+    () => allThreads.filter(thread => thread.starred).length,
+    [allThreads],
+  );
 
   useEffect(() => {
     if (!accountOpen) return;
@@ -262,17 +275,19 @@ export default function FlowConsole({
 
   useEffect(() => {
     let active = true;
+    const controller = new AbortController();
 
     fetch(apiUrl('/flow/config'), {
       credentials: 'include',
       headers: flowHeaders(),
+      signal: controller.signal,
     })
       .then(response => responseJson<FlowConfig>(response))
       .then(nextConfig => {
         if (active) setConfig({ ...defaultConfig, ...nextConfig });
       })
       .catch(error => {
-        if (!active) return;
+        if (!active || controller.signal.aborted) return;
         setStatus({
           kind: 'info',
           text:
@@ -284,15 +299,18 @@ export default function FlowConsole({
 
     return () => {
       active = false;
+      controller.abort();
     };
   }, []);
 
   useEffect(() => {
     let active = true;
+    const controller = new AbortController();
 
     fetch(apiUrl(`/flow/messages?folder=${backendFolderFor(activeFolder)}`), {
       credentials: 'include',
       headers: flowHeaders(),
+      signal: controller.signal,
     })
       .then(response => responseJson<BackendMessagesResponse>(response))
       .then(data => {
@@ -301,7 +319,7 @@ export default function FlowConsole({
         setFolderCounts(mapCounts(data.counts));
       })
       .catch(error => {
-        if (!active) return;
+        if (!active || controller.signal.aborted) return;
         setMessages([]);
         setStatus({
           kind: 'info',
@@ -317,6 +335,7 @@ export default function FlowConsole({
 
     return () => {
       active = false;
+      controller.abort();
     };
   }, [activeFolder, refreshSeq]);
 
@@ -1648,6 +1667,13 @@ export default function FlowConsole({
                 </div>
               </div>
 
+              <div className={styles.insightBar} aria-label="Mailbox insights">
+                <span><strong>{unreadCount}</strong> unread</span>
+                <span><strong>{starredCount}</strong> starred</span>
+                <span><strong>{visibleThreads.length}</strong> conversations</span>
+                {query !== debouncedQuery ? <span>Refining search...</span> : null}
+              </div>
+
               {status ? (
                 <div
                   className={
@@ -1664,95 +1690,19 @@ export default function FlowConsole({
                 {isLoadingMessages ? (
                   <div className={styles.loadingState}>Loading mail...</div>
                 ) : visibleThreads.length ? (
-                  visibleThreads.map(thread => {
-                    const message = thread.latest;
-                    const contact = contactFromMessage(message);
-
-                    return (
-                    <div
-                      className={
-                        thread.unread
-                          ? `${styles.messageRow} ${styles.messageUnread}`
-                          : styles.messageRow
-                      }
+                  visibleThreads.map(thread => (
+                    <MessageRow
+                      isSelected={selectedIdSet.has(thread.id)}
                       key={thread.id}
-                      onClick={() => openMessage(thread.id)}
-                      onKeyDown={event => openMessageFromKeyboard(event, thread.id)}
-                      role="button"
-                      tabIndex={0}
-                    >
-                      <input
-                        aria-label={`Select ${thread.subject}`}
-                        checked={selectedIds.includes(thread.id)}
-                        className={styles.checkbox}
-                        onChange={() => toggleSelected(thread.id)}
-                        onClick={event => event.stopPropagation()}
-                        type="checkbox"
-                      />
-                      <button
-                        aria-label={
-                          message.starred
-                            ? 'Remove star from message'
-                            : 'Star message'
-                        }
-                        className={
-                          message.starred
-                            ? `${styles.rowStar} ${styles.rowStarActive}`
-                            : styles.rowStar
-                        }
-                        data-tooltip={message.starred ? 'Unstar' : 'Star'}
-                        onClick={event => toggleStarred(event, message.id)}
-                        type="button"
-                      >
-                        <Star
-                          fill={message.starred ? 'currentColor' : 'none'}
-                          size={18}
-                        />
-                      </button>
-                      <span
-                        className={styles.sender}
-                        onClick={event => event.stopPropagation()}
-                      >
-                        <span className={styles.contactHover}>
-                          <button
-                            className={styles.senderButton}
-                            type="button"
-                          >
-                            {message.folder === 'sent'
-                              ? `To:${contact.name}`
-                              : contact.name}
-                          </button>
-                          <ContactHoverCard
-                            contact={contact}
-                            onCompose={openComposeToContact}
-                            onTool={showContactToolStatus}
-                          />
-                        </span>
-                      </span>
-                      <span className={styles.preview}>
-                        <span>{thread.subject}</span>
-                        {message.preview || message.body ? (
-                          <em>- {message.preview || message.body}</em>
-                        ) : null}
-                        {message.direction === 'outbound' ? (
-                          <strong
-                            className={`${styles.trackingBadge} ${
-                              styles[`tracking${sentTrackingKind(message)}`]
-                            }`}
-                          >
-                            {sentTrackingLabel(message, true)}
-                          </strong>
-                        ) : null}
-                        {thread.count > 1 ? (
-                          <strong className={styles.threadCount}>
-                            {thread.count}
-                          </strong>
-                        ) : null}
-                      </span>
-                      <time>{formatListDate(message.date)}</time>
-                    </div>
-                    );
-                  })
+                      onKeyDown={openMessageFromKeyboard}
+                      onOpenCompose={openComposeToContact}
+                      onSelect={openMessage}
+                      onShowStatus={showContactToolStatus}
+                      onToggleSelect={toggleSelected}
+                      onToggleStarred={toggleStarred}
+                      thread={thread}
+                    />
+                  ))
                 ) : (
                   <div className={styles.emptyState}>
                     <div className={styles.emptyIcon}>
