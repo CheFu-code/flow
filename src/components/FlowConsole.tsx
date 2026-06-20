@@ -184,6 +184,8 @@ export default function FlowConsole({
 
   const debouncedQuery = useDebounce(query, 140);
 
+  const debouncedQuery = useDebounce(query, 140);
+
   const allThreads = useMemo(
     () => groupMessagesIntoThreads(messages),
     [messages],
