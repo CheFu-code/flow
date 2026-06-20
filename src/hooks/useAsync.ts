@@ -43,6 +43,9 @@ export function useAsync<T>(
     mountedRef.current = true;
 
     if (immediate) {
+      void Promise.resolve().then(() => {
+        if (!cancelled) void execute();
+      });
       void Promise.resolve().then(execute);
     }
 

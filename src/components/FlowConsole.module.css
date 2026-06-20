@@ -2015,3 +2015,79 @@
 .readerMessage {
   border-bottom-color: rgba(15, 23, 42, 0.06);
 }
+
+.headerPanel {
+  position: absolute;
+  top: 58px;
+  right: 72px;
+  z-index: 55;
+  display: grid;
+  min-width: 230px;
+  gap: 6px;
+  border: 1px solid rgba(15, 23, 42, 0.08);
+  border-radius: 18px;
+  background: rgba(255, 255, 255, 0.96);
+  box-shadow: 0 24px 70px rgba(15, 23, 42, 0.16);
+  padding: 10px;
+  backdrop-filter: blur(18px);
+}
+
+.headerPanel strong {
+  color: #0f172a;
+  font-size: 13px;
+  padding: 6px 8px;
+}
+
+.headerPanel button,
+.inlineActionMenu button {
+  display: flex;
+  width: 100%;
+  align-items: center;
+  border: 0;
+  border-radius: 10px;
+  background: transparent;
+  color: #334155;
+  font: inherit;
+  font-size: 13px;
+  justify-content: flex-start;
+  padding: 8px 10px;
+  text-align: left;
+}
+
+.headerPanel button:hover,
+.inlineActionMenu button:hover {
+  background: rgba(15, 118, 110, 0.1);
+  color: #0f766e;
+}
+
+.inlineActionMenu {
+  display: flex;
+  width: max-content;
+  max-width: 100%;
+  flex-wrap: wrap;
+  gap: 4px;
+  border: 1px solid rgba(15, 23, 42, 0.08);
+  border-radius: 14px;
+  background: #ffffff;
+  box-shadow: 0 14px 34px rgba(15, 23, 42, 0.12);
+  padding: 6px;
+}
+
+.inlineActionMenu button {
+  width: auto;
+  min-width: 38px;
+  justify-content: center;
+}
+
+.compactDensity .messageRow {
+  min-height: 38px;
+}
+
+.compactDensity .listPane,
+.compactDensity .reader {
+  margin: 8px;
+}
+
+.compactDensity .insightBar {
+  padding-block: 7px;
+}
