@@ -69,6 +69,7 @@ import type {
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { FlowMark } from '@/components/brand/FlowMark';
 import { ContactHoverCard } from '@/components/flow-console/ContactHoverCard';
+import { ManageSendersModal } from '@/components/flow-console/ManageSendersModal';
 import { MessageRow } from '@/components/MessageRow';
 import { useDebounce } from '@/hooks/useDebounce';
 import { apiUrl, flowHeaders } from '@/lib/api';
@@ -122,6 +123,7 @@ import type {
   DeleteConfirm,
   FlowConfig,
   FlowConsoleProps,
+  FlowSender,
   MailFolder,
   MailMessage,
   MessageFolder,
@@ -161,6 +163,7 @@ export default function FlowConsole({
   const [isDeleting, setIsDeleting] = useState(false);
   const [isLoadingMessages, setIsLoadingMessages] = useState(true);
   const [isSending, setIsSending] = useState(false);
+  const [manageSendersOpen, setManageSendersOpen] = useState(false);
   const [emojiPickerOpen, setEmojiPickerOpen] = useState(false);
   const [formatToolbarOpen, setFormatToolbarOpen] = useState(true);
   const [moreToolsOpen, setMoreToolsOpen] = useState(false);
@@ -181,8 +184,6 @@ export default function FlowConsole({
   const [themeDensity, setThemeDensity] = useState<'comfortable' | 'compact'>(
     'comfortable',
   );
-
-  const debouncedQuery = useDebounce(query, 140);
 
   const debouncedQuery = useDebounce(query, 140);
 
@@ -265,6 +266,37 @@ export default function FlowConsole({
     () => allThreads.filter(thread => thread.starred).length,
     [allThreads],
   );
+
+  const handleSenderAdded = (newSender: FlowSender) => {
+    setConfig(prev => {
+      const existing = prev.senders || [];
+      const filtered = existing.filter(
+        s => s.email.toLowerCase() !== newSender.email.toLowerCase(),
+      );
+      return {
+        ...prev,
+        senders: [newSender, ...filtered],
+      };
+    });
+    setComposeFields(prev => ({
+      ...prev,
+      from: newSender.email,
+    }));
+  };
+
+  const handleSenderRemoved = (bareEmail: string) => {
+    setConfig(prev => {
+      const filtered = (prev.senders || []).filter(s => {
+        const match = s.email.match(/<([^>]+)>/);
+        const email = (match?.[1] || s.email).trim().toLowerCase();
+        return email !== bareEmail.toLowerCase();
+      });
+      return {
+        ...prev,
+        senders: filtered,
+      };
+    });
+  };
 
   useEffect(() => {
     if (!accountOpen) return;
@@ -1397,7 +1429,16 @@ export default function FlowConsole({
               ) : null}
               {activeHeaderPanel === 'settings' ? (
                 <>
-                  <strong>Display settings</strong>
+                  <strong>Settings & Senders</strong>
+                  <button
+                    onClick={() => {
+                      setActiveHeaderPanel(null);
+                      setManageSendersOpen(true);
+                    }}
+                    type="button"
+                  >
+                    Manage sender addresses (@chefu.co.za)
+                  </button>
                   <button
                     onClick={() => setThemeDensity('comfortable')}
                     type="button"
@@ -2072,32 +2113,53 @@ export default function FlowConsole({
               </div>
             </div>
 
-            <label className={styles.composeLine}>
+            <div className={styles.composeLine}>
               <span>From</span>
-              {config.senders?.length ? (
-                <select
-                  aria-label="Sender"
-                  className={styles.composeSelect}
-                  disabled={isSending}
-                  onChange={updateComposeField('from')}
-                  value={composeFrom}
-                >
-                  {config.senders.map(sender => (
-                    <option key={sender.email} value={sender.email}>
-                      {sender.label}
+              <div className={styles.composeFromWrap}>
+                {config.senders?.length ? (
+                  <select
+                    aria-label="Sender"
+                    className={styles.composeSelect}
+                    disabled={isSending}
+                    onChange={e => {
+                      if (e.target.value === '__add_new__') {
+                        setManageSendersOpen(true);
+                      } else {
+                        updateComposeField('from')(e);
+                      }
+                    }}
+                    value={composeFrom}
+                  >
+                    {config.senders.map(sender => (
+                      <option key={sender.email} value={sender.email}>
+                        {sender.label}
+                      </option>
+                    ))}
+                    <option value="__add_new__">
+                      + Manage / Add @chefu.co.za address...
                     </option>
-                  ))}
-                </select>
-              ) : (
-                <input
-                  aria-label="Sender"
-                  disabled={isSending}
-                  onChange={updateComposeField('from')}
-                  placeholder="Name <email@chefuinc.com>"
-                  value={composeFrom}
-                />
-              )}
-            </label>
+                  </select>
+                ) : (
+                  <input
+                    aria-label="Sender"
+                    disabled={isSending}
+                    onChange={updateComposeField('from')}
+                    placeholder="Name <email@chefu.co.za>"
+                    value={composeFrom}
+                  />
+                )}
+                <button
+                  type="button"
+                  className={styles.manageSendersButton}
+                  onClick={() => setManageSendersOpen(true)}
+                  data-tooltip="Manage sender addresses (@chefu.co.za)"
+                  aria-label="Manage sender addresses"
+                >
+                  <AtSign size={14} />
+                  <span>Addresses</span>
+                </button>
+              </div>
+            </div>
             <div className={styles.composeLine}>
               <span>Recipients</span>
               <div className={styles.recipientComposer}>
@@ -2600,6 +2662,17 @@ export default function FlowConsole({
           </form>
         </div>
       ) : null}
+
+      <ManageSendersModal
+        isOpen={manageSendersOpen}
+        onClose={() => setManageSendersOpen(false)}
+        onSenderAdded={handleSenderAdded}
+        onSenderRemoved={handleSenderRemoved}
+        onSelectSender={email => {
+          setComposeFields(prev => ({ ...prev, from: email }));
+        }}
+        senders={config.senders || []}
+      />
     </main>
   );
 }

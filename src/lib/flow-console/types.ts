@@ -94,6 +94,14 @@ export type AccessSession = {
   keyLabel: string;
 };
 
+export type FlowSender = {
+  addedAt?: string | null;
+  email: string;
+  label: string;
+  name?: string;
+  source?: 'env' | 'custom';
+};
+
 export type FlowConfig = {
   defaultFrom: string;
   defaultReplyTo: string;
@@ -101,7 +109,7 @@ export type FlowConfig = {
   inboundConfigured?: boolean;
   maxRecipients: number;
   resendConfigured: boolean;
-  senders?: Array<{ email: string; label: string }>;
+  senders?: FlowSender[];
 };
 
 export type BackendMessage = {
