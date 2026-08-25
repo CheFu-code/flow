@@ -14,13 +14,13 @@ export const folderItems: Array<{
   icon: LucideIcon;
   title: string;
 }> = [
-  { folder: 'inbox', icon: Inbox, title: 'Inbox' },
-  { folder: 'starred', icon: Star, title: 'Starred' },
-  { folder: 'sent', icon: Send, title: 'Sent' },
-  { folder: 'drafts', icon: FileText, title: 'Drafts' },
-  { folder: 'bin', icon: Trash2, title: 'Bin' },
-  { folder: 'allmail', icon: Mail, title: 'All Mail' },
-];
+    { folder: 'inbox', icon: Inbox, title: 'Inbox' },
+    { folder: 'starred', icon: Star, title: 'Starred' },
+    { folder: 'sent', icon: Send, title: 'Sent' },
+    { folder: 'drafts', icon: FileText, title: 'Drafts' },
+    { folder: 'bin', icon: Trash2, title: 'Bin' },
+    { folder: 'allmail', icon: Mail, title: 'All Mail' },
+  ];
 
 export const emptyStates: Record<
   MailFolder,
@@ -64,7 +64,7 @@ export const emptyFolderCounts: Record<MailFolder, number> = {
 };
 
 export const defaultConfig: FlowConfig = {
-  defaultFrom: 'Flow Mail <mail@flow.chefuinc.com>',
+  defaultFrom: 'Flow Mail <mail@flow.chefu.co.za>',
   defaultReplyTo: '',
   inboundAddress: '',
   inboundConfigured: false,
