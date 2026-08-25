@@ -978,7 +978,7 @@ export default function FlowConsole({
   };
 
   const insertSignature = () => {
-    insertEditorHtml('<br /><br />Best regards,<br />CheFu Inc');
+    insertEditorHtml('<br /><br />Best regards,<br />CHEFU Technologies');
   };
 
   const insertDivider = () => {
