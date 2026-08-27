@@ -126,6 +126,35 @@ import type {
 } from '@/lib/flow-console/types';
 import styles from './FlowConsole.module.css';
 
+const MAILBOX_CACHE_KEY = 'flow-mailbox-cache-v1';
+
+function readMailboxCache(folder: MailFolder): MailMessage[] {
+  if (typeof window === 'undefined') return [];
+
+  try {
+    const cached = JSON.parse(
+      window.sessionStorage.getItem(MAILBOX_CACHE_KEY) || '{}',
+    ) as Record<string, MailMessage[]>;
+    return Array.isArray(cached[folder]) ? cached[folder] : [];
+  } catch {
+    return [];
+  }
+}
+
+function writeMailboxCache(folder: MailFolder, messages: MailMessage[]) {
+  if (typeof window === 'undefined') return;
+
+  try {
+    const cached = JSON.parse(
+      window.sessionStorage.getItem(MAILBOX_CACHE_KEY) || '{}',
+    ) as Record<string, MailMessage[]>;
+    cached[folder] = messages.slice(0, 100);
+    window.sessionStorage.setItem(MAILBOX_CACHE_KEY, JSON.stringify(cached));
+  } catch {
+    // Session storage is optional and may be unavailable or full.
+  }
+}
+
 export default function FlowConsole({
   accessSession,
   onLock,
@@ -162,13 +191,14 @@ export default function FlowConsole({
   const [emojiPickerOpen, setEmojiPickerOpen] = useState(false);
   const [formatToolbarOpen, setFormatToolbarOpen] = useState(true);
   const [moreToolsOpen, setMoreToolsOpen] = useState(false);
-  const [messages, setMessages] = useState<MailMessage[]>([]);
+  const [messages, setMessages] = useState<MailMessage[]>(() =>
+    readMailboxCache('inbox'),
+  );
   const [messageMenuId, setMessageMenuId] = useState<string | null>(null);
   const [query, setQuery] = useState('');
   const [readerMoreOpen, setReaderMoreOpen] = useState(false);
   const [readerMoveOpen, setReaderMoveOpen] = useState(false);
   const [recipientEmails, setRecipientEmails] = useState<string[]>([]);
-  const [refreshSeq, setRefreshSeq] = useState(0);
   const [sendOptionsOpen, setSendOptionsOpen] = useState(false);
   const [selectedIds, setSelectedIds] = useState<string[]>([]);
   const [selectedMessageId, setSelectedMessageId] = useState<string | null>(
@@ -339,50 +369,16 @@ export default function FlowConsole({
   }, []);
 
   useEffect(() => {
-    let active = true;
-    const controller = new AbortController();
-
-    fetch(apiUrl(`/flow/messages?folder=${backendFolderFor(activeFolder)}`), {
-      credentials: 'include',
-      headers: flowHeaders(),
-      signal: controller.signal,
-    })
-      .then(response => responseJson<BackendMessagesResponse>(response))
-      .then(data => {
-        if (!active) return;
-        setMessages((data.messages || []).map(toMailMessage));
-        setFolderCounts(mapCounts(data.counts));
-      })
-      .catch(error => {
-        if (!active || controller.signal.aborted) return;
-        setMessages([]);
-        setStatus({
-          kind: 'info',
-          text:
-            error instanceof Error
-              ? error.message
-              : 'Messages could not be loaded.',
-        });
-      })
-      .finally(() => {
-        if (active) setIsLoadingMessages(false);
-      });
-
-    return () => {
-      active = false;
-      controller.abort();
-    };
-  }, [activeFolder, refreshSeq]);
-
-  useEffect(() => {
     const controller = new AbortController();
     let stopped = false;
     let retryTimer: ReturnType<typeof setTimeout> | null = null;
 
     const applyMessages = (data: BackendMessagesResponse) => {
-      setMessages((data.messages || []).map(toMailMessage));
+      const nextMessages = (data.messages || []).map(toMailMessage);
+      setMessages(nextMessages);
       setFolderCounts(mapCounts(data.counts));
       setIsLoadingMessages(false);
+      writeMailboxCache(activeFolder, nextMessages);
     };
 
     const handleEvent = (rawEvent: string) => {
@@ -407,7 +403,11 @@ export default function FlowConsole({
           },
         );
 
-        if (!response.ok || !response.body) return;
+        if (!response.ok || !response.body) {
+          setIsLoadingMessages(false);
+          setStatus({ kind: 'info', text: 'Live mailbox updates could not be connected.' });
+          return;
+        }
 
         const reader = response.body.getReader();
         const decoder = new TextDecoder();
@@ -443,7 +443,9 @@ export default function FlowConsole({
   }, [activeFolder]);
 
   const changeFolder = (folder: MailFolder) => {
-    setIsLoadingMessages(true);
+    const cachedMessages = readMailboxCache(folder);
+    setMessages(cachedMessages);
+    setIsLoadingMessages(cachedMessages.length === 0);
     setActiveFolder(folder);
     setReaderMoreOpen(false);
     setReaderMoveOpen(false);
@@ -451,11 +453,6 @@ export default function FlowConsole({
     setSelectedIds([]);
     setSelectedMessageId(null);
     setStatus(null);
-  };
-
-  const refreshMessages = () => {
-    setIsLoadingMessages(true);
-    setRefreshSeq(value => value + 1);
   };
 
   const openMessage = (threadId: string) => {
@@ -526,7 +523,7 @@ export default function FlowConsole({
       method: 'POST',
     })
       .then(response => responseJson<{ starred: boolean }>(response))
-      .then(refreshMessages)
+      .then(() => undefined)
       .catch(error => {
         setMessages(current =>
           current.map(item =>
@@ -641,7 +638,6 @@ export default function FlowConsole({
       );
       setStatus({ kind: 'success', text: success });
       if (!keepOpen) setSelectedMessageId(null);
-      refreshMessages();
     } catch (error) {
       setStatus({
         kind: 'info',
@@ -819,7 +815,6 @@ export default function FlowConsole({
       setDeleteConfirm(null);
       setSelectedIds([]);
       setSelectedMessageId(null);
-      refreshMessages();
     } catch (error) {
       setStatus({
         kind: 'info',
@@ -1125,7 +1120,6 @@ export default function FlowConsole({
           method: 'POST',
         }).then(response => responseJson(response));
         setStatus({ kind: 'success', text: 'Draft saved.' });
-        if (activeFolder === 'drafts') refreshMessages();
       } catch (error) {
         setStatus({
           kind: 'info',
@@ -1324,7 +1318,6 @@ export default function FlowConsole({
         }.`,
       });
       resetCompose();
-      refreshMessages();
     } catch (error) {
       setStatus({
         kind: 'info',
@@ -1906,7 +1899,7 @@ export default function FlowConsole({
               ) : null}
 
               <div className={styles.messageList}>
-                {isLoadingMessages ? (
+                {isLoadingMessages && messages.length === 0 ? (
                   <div className={styles.loadingState}>Loading mail...</div>
                 ) : visibleThreads.length ? (
                   visibleThreads.map(thread => (

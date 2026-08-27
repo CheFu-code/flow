@@ -46,7 +46,6 @@ export function useAsync<T>(
       void Promise.resolve().then(() => {
         if (!cancelled) void execute();
       });
-      void Promise.resolve().then(execute);
     }
 
     return () => {

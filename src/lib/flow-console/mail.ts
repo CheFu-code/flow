@@ -108,7 +108,12 @@ export function groupMessagesIntoThreads(messages: MailMessage[]): MailThread[] 
 
   messages.forEach(message => {
     const key = messageThreadKey(message);
-    groups.set(key, [...(groups.get(key) || []), message]);
+    const group = groups.get(key);
+    if (group) {
+      group.push(message);
+    } else {
+      groups.set(key, [message]);
+    }
   });
 
   return [...groups.entries()]
