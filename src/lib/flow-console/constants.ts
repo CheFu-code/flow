@@ -64,7 +64,7 @@ export const emptyFolderCounts: Record<MailFolder, number> = {
 };
 
 export const defaultConfig: FlowConfig = {
-  defaultFrom: 'Flow Mail <mail@flow.chefu.co.za>',
+  defaultFrom: 'Flow Mail <mail@chefu.co.za>',
   defaultReplyTo: '',
   inboundAddress: '',
   inboundConfigured: false,
