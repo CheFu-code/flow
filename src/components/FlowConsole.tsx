@@ -446,8 +446,47 @@ export default function FlowConsole({
       writeMailboxCache(activeFolder, nextMessages);
     };
 
+    const loadMailboxFallback = async () => {
+      try {
+        const response = await fetch(
+          apiUrl(`/flow/messages?folder=${backendFolderFor(activeFolder)}`),
+          {
+            credentials: 'include',
+            headers: flowHeaders(),
+            signal: controller.signal,
+          },
+        );
+        applyMessages(await responseJson<BackendMessagesResponse>(response));
+      } catch (error) {
+        if (stopped || controller.signal.aborted) return;
+        setIsLoadingMessages(false);
+        setStatus({
+          kind: 'info',
+          text:
+            error instanceof Error
+              ? error.message
+              : 'Mailbox could not be loaded.',
+        });
+      }
+    };
+
     const handleEvent = (rawEvent: string) => {
       const parsed = parseServerSentEvent(rawEvent.trim());
+      if (parsed.event === 'error') {
+        let errorMessage = 'Live mailbox updates failed.';
+        try {
+          const payload = JSON.parse(parsed.data) as { message?: string };
+          if (payload.message) errorMessage = payload.message;
+        } catch {
+          // Keep the user-facing fallback message for malformed error frames.
+        }
+        setStatus({
+          kind: 'info',
+          text: `${errorMessage} Showing the latest available mail.`,
+        });
+        void loadMailboxFallback();
+        return;
+      }
       if (parsed.event !== 'messages' || !parsed.data) return;
 
       try {
@@ -469,8 +508,8 @@ export default function FlowConsole({
         );
 
         if (!response.ok || !response.body) {
-          setIsLoadingMessages(false);
           setStatus({ kind: 'info', text: 'Live mailbox updates could not be connected.' });
+          void loadMailboxFallback();
           return;
         }
 
@@ -489,6 +528,11 @@ export default function FlowConsole({
         }
       } catch {
         if (stopped || controller.signal.aborted) return;
+        setIsLoadingMessages(false);
+        setStatus({
+          kind: 'info',
+          text: 'Mailbox updates are temporarily unavailable.',
+        });
       }
 
       if (!stopped) {
