@@ -92,6 +92,7 @@ export type StatusMessage = {
 export type AccessSession = {
   expiresAt: string;
   keyLabel: string;
+  permission: 'read' | 'write' | 'full';
 };
 
 export type FlowSender = {

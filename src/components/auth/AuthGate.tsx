@@ -25,7 +25,7 @@ type AuthGateProps = {
 };
 
 type FlowAccessSession =
-  | { granted: true; expiresAt: string; keyLabel: string }
+  | { granted: true; expiresAt: string; keyLabel: string; permission: 'read' | 'write' | 'full' }
   | { granted: false; expiresAt?: never; keyLabel?: never };
 
 type AuthenticatedFlowSession = Extract<FlowAccessSession, { granted: true }>;

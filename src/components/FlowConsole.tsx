@@ -49,6 +49,7 @@ import {
   SlidersHorizontal,
   Smile,
   Sparkles,
+  ShieldCheck,
   Star,
   Strikethrough,
   Triangle,
@@ -258,6 +259,7 @@ export default function FlowConsole({
     [composeAttachments],
   );
   const sessionExpiry = formatSessionExpiry(accessSession.expiresAt);
+  const canWrite = accessSession.permission !== 'read';
   const unreadCount = useMemo(
     () => allThreads.filter(thread => thread.unread).length,
     [allThreads],
@@ -1510,6 +1512,14 @@ export default function FlowConsole({
                   <div>
                     <span>Session expires</span>
                     <strong>{sessionExpiry}</strong>
+                  </div>
+                </div>
+
+                <div className={styles.accountDetail}>
+                  <ShieldCheck size={16} />
+                  <div>
+                    <span>Access level</span>
+                    <strong>{accessSession.permission === 'full' ? 'Full access' : `${accessSession.permission[0].toUpperCase()}${accessSession.permission.slice(1)} access`}</strong>
                   </div>
                 </div>
 
