@@ -604,6 +604,16 @@
   outline-offset: -2px;
 }
 
+.messageRow:active {
+  background: #e6fffb;
+}
+
+.composeButton:disabled {
+  cursor: not-allowed;
+  filter: grayscale(0.35);
+  opacity: 0.5;
+}
+
 .messageUnread {
   background: #f2f6fc;
   font-weight: 700;
@@ -891,6 +901,48 @@
   place-items: center;
   color: #5f6368;
   font-size: 14px;
+}
+
+.mailboxSkeleton {
+  display: grid;
+  gap: 1px;
+  padding: 8px 10px;
+}
+
+.skeletonRow {
+  display: grid;
+  height: 52px;
+  grid-template-columns: 22px 180px minmax(0, 1fr) 72px;
+  align-items: center;
+  gap: 12px;
+  border-bottom: 1px solid #f1f3f4;
+}
+
+.skeletonBlock {
+  display: block;
+  height: 10px;
+  border-radius: 999px;
+  background: linear-gradient(90deg, #eef2f5, #f8fafc, #eef2f5);
+  background-size: 200% 100%;
+  animation: skeletonPulse 1.4s ease-in-out infinite;
+}
+
+.skeletonSender { width: 76%; }
+.skeletonPreview { width: 92%; }
+.skeletonDate { width: 58px; justify-self: end; }
+
+@keyframes skeletonPulse {
+  0%, 100% { background-position: 0 0; }
+  50% { background-position: 100% 0; }
+}
+
+.srOnly {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  overflow: hidden;
+  clip: rect(0, 0, 0, 0);
+  white-space: nowrap;
 }
 
 .emptyIcon {
@@ -1826,6 +1878,14 @@
   .sidebar {
     max-width: 70vw;
   }
+
+  .skeletonRow {
+    grid-template-columns: 22px minmax(0, 1fr) 58px;
+  }
+
+  .skeletonPreview {
+    display: none;
+  }
 }
 
 @media (prefers-reduced-motion: no-preference) {
@@ -2090,6 +2150,23 @@
 
 .compactDensity .insightBar {
   padding-block: 7px;
+}
+
+/* Keep long conversations scrollable inside the fixed mail workspace. */
+.contentPane,
+.reader {
+  min-height: 0;
+}
+
+.reader {
+  overflow-x: hidden;
+  overflow-y: auto;
+  overscroll-behavior: contain;
+  -webkit-overflow-scrolling: touch;
+}
+
+.readerThread {
+  overflow: visible;
 }
 
 /* ── Compose From & Sender Selector Controls ────────────────────────── */

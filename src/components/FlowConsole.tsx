@@ -25,7 +25,6 @@ import {
   ListOrdered,
   Loader2,
   LockKeyhole,
-  Mail,
   Maximize2,
   Menu,
   MailOpen,
@@ -68,7 +67,7 @@ import { AccountMenu } from '@/components/flow-console/AccountMenu';
 import { DeleteConfirmDialog } from '@/components/flow-console/DeleteConfirmDialog';
 import { FlowSidebar } from '@/components/flow-console/FlowSidebar';
 import { ManageSendersModal } from '@/components/flow-console/ManageSendersModal';
-import { MessageRow } from '@/components/MessageRow';
+import { MailboxList } from '@/components/flow-console/MailboxList';
 import { useDebounce } from '@/hooks/useDebounce';
 import { apiUrl, flowHeaders } from '@/lib/api';
 import {
@@ -293,14 +292,6 @@ export default function FlowConsole({
     [composeAttachments],
   );
   const canWrite = accessSession.permission !== 'read';
-  const unreadCount = useMemo(
-    () => allThreads.filter(thread => thread.unread).length,
-    [allThreads],
-  );
-  const starredCount = useMemo(
-    () => allThreads.filter(thread => thread.starred).length,
-    [allThreads],
-  );
 
   const handleSenderAdded = (newSender: FlowSender) => {
     setConfig(prev => {
@@ -1988,98 +1979,33 @@ export default function FlowConsole({
               </div>
             </article>
           ) : (
-            <div className={styles.listPane}>
-              <div className={styles.listToolbar}>
-                <div className={styles.listTools}>
-                  <input
-                    aria-label="Select all messages"
-                    checked={allVisibleSelected}
-                    className={styles.checkbox}
-                    onChange={toggleAllSelected}
-                    type="checkbox"
-                  />
-                  <button
-                    aria-label="Delete selected messages"
-                    className={styles.toolbarButton}
-                    data-tooltip="Delete"
-                    disabled={selectedIds.length === 0}
-                    onClick={requestDeleteSelected}
-                    type="button"
-                  >
-                    <Trash2 size={19} />
-                  </button>
-                </div>
-                <div className={styles.folderSummary}>
-                  <strong>{selectedFolderTitle}</strong>
-                  <span>
-                    {visibleThreads.length} of {allThreads.length} shown
-                  </span>
-                </div>
-              </div>
-
-              <div className={styles.insightBar} aria-label="Mailbox insights">
-                <span><strong>{unreadCount}</strong> unread</span>
-                <span><strong>{starredCount}</strong> starred</span>
-                <span><strong>{visibleThreads.length}</strong> conversations</span>
-                {query !== debouncedQuery ? <span>Refining search...</span> : null}
-              </div>
-
-              {status ? (
-                <div
-                  className={
-                    status.kind === 'success'
-                      ? `${styles.status} ${styles.statusSuccess}`
-                      : styles.status
-                  }
-                >
-                  {status.text}
-                </div>
-              ) : null}
-
-              <div
-                className={styles.messageList}
-                onScroll={event => {
-                  const element = event.currentTarget;
-                  setListScrollTop(element.scrollTop);
-                  if (element.scrollTop + element.clientHeight >= element.scrollHeight - 240) {
-                    void loadNextPage();
-                  }
-                }}
-              >
-                {isLoadingMessages && messages.length === 0 ? (
-                  <div className={styles.loadingState}>Loading mail...</div>
-                ) : visibleThreads.length ? (
-                  <>
-                    <div style={{ height: virtualStart * 44 }} />
-                    {renderedThreads.map(thread => (
-                      <MessageRow
-                        isSelected={selectedIdSet.has(thread.id)}
-                        key={thread.id}
-                        onKeyDown={openMessageFromKeyboard}
-                        onOpenCompose={openComposeToContact}
-                        onSelect={openMessage}
-                        onShowStatus={showContactToolStatus}
-                        onToggleSelect={toggleSelected}
-                        onToggleStarred={toggleStarred}
-                        thread={thread}
-                      />
-                    ))}
-                    <div style={{ height: Math.max(0, (visibleThreads.length - virtualEnd) * 44) }} />
-                  </>
-                ) : (
-                  <div className={styles.emptyState}>
-                    <div className={styles.emptyIcon}>
-                      <Mail size={48} />
-                    </div>
-                    <h2>{activeEmptyState.heading}</h2>
-                    {activeEmptyState.subHeading ? (
-                      <p>{activeEmptyState.subHeading}</p>
-                    ) : null}
-                  </div>
-                )}
-                {isLoadingMore ? <div className={styles.loadingState}>Loading older mail...</div> : null}
-              </div>
-            </div>
+            <MailboxList
+              activeEmptyState={activeEmptyState}
+              allThreadsCount={allThreads.length}
+              allVisibleSelected={allVisibleSelected}
+              hasSelection={selectedIds.length > 0}
+              debouncedQuery={debouncedQuery}
+              isLoadingMessages={isLoadingMessages}
+              isLoadingMore={isLoadingMore}
+              query={query}
+              renderedThreads={renderedThreads}
+              selectedFolderTitle={selectedFolderTitle}
+              selectedIdSet={selectedIdSet}
+              status={status}
+              totalThreads={visibleThreads.length}
+              virtualEnd={virtualEnd}
+              virtualStart={virtualStart}
+              onDeleteSelected={requestDeleteSelected}
+              onKeyDown={openMessageFromKeyboard}
+              onLoadMore={() => void loadNextPage()}
+              onOpenCompose={openComposeToContact}
+              onSelect={openMessage}
+              onSelectAll={toggleAllSelected}
+              onShowStatus={showContactToolStatus}
+              onScroll={setListScrollTop}
+              onToggleSelect={toggleSelected}
+              onToggleStarred={toggleStarred}
+            />
           )}
         </section>
       </section>
@@ -2246,6 +2172,7 @@ export default function FlowConsole({
                 disabled={isSending}
                 onChange={updateComposeField('subject')}
                 value={composeFields.subject}
+                placeholder='Subject...'
               />
             </label>
             <div
