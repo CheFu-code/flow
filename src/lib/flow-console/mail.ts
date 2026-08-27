@@ -58,6 +58,7 @@ export function toMailMessage(message: BackendMessage): MailMessage {
   return {
     attachments: Number(message.attachments) || 0,
     body: message.text || message.preview || '',
+    contentLoaded: typeof message.text === 'string' || typeof message.html === 'string',
     clickedAt: message.clickedAt,
     clickCount: Number(message.clickCount) || 0,
     date:

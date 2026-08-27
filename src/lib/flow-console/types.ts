@@ -16,6 +16,7 @@ export type MessageFolder =
 export type MailMessage = {
   attachments: number;
   body: string;
+  contentLoaded?: boolean;
   clickedAt?: string;
   clickCount?: number;
   date: string;

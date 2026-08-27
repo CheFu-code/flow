@@ -111,6 +111,7 @@ import {
 } from '@/lib/flow-console/reader';
 import { parseServerSentEvent } from '@/lib/flow-console/sse';
 import type {
+  BackendMessage,
   BackendMessagesResponse,
   ComposeAttachment,
   ComposeFields,
@@ -166,6 +167,7 @@ export default function FlowConsole({
   const deleteLockRef = useRef(false);
   const imageInputRef = useRef<HTMLInputElement | null>(null);
   const sendLockRef = useRef(false);
+  const detailLoadedRef = useRef(new Set<string>());
   const [accountOpen, setAccountOpen] = useState(false);
   const [activeFolder, setActiveFolder] = useState<MailFolder>('inbox');
   const [activeHeaderPanel, setActiveHeaderPanel] = useState<
@@ -190,6 +192,7 @@ export default function FlowConsole({
   const [isSending, setIsSending] = useState(false);
   const [isSavingDraft, setIsSavingDraft] = useState(false);
   const [isLoadingMore, setIsLoadingMore] = useState(false);
+  const [listScrollTop, setListScrollTop] = useState(0);
   const [manageSendersOpen, setManageSendersOpen] = useState(false);
   const [emojiPickerOpen, setEmojiPickerOpen] = useState(false);
   const [formatToolbarOpen, setFormatToolbarOpen] = useState(true);
@@ -243,6 +246,10 @@ export default function FlowConsole({
         .includes(cleanQuery);
     });
   }, [allThreads, debouncedQuery]);
+
+  const virtualStart = Math.max(0, Math.floor(listScrollTop / 44) - 5);
+  const virtualEnd = Math.min(visibleThreads.length, virtualStart + 30);
+  const renderedThreads = visibleThreads.slice(virtualStart, virtualEnd);
 
   const selectedThread = useMemo(
     () => allThreads.find(thread => thread.id === selectedMessageId) || null,
@@ -371,6 +378,56 @@ export default function FlowConsole({
       controller.abort();
     };
   }, []);
+
+  useEffect(() => {
+    if (!selectedThread) return;
+
+    const pending = selectedThread.messages.filter(
+      message => !detailLoadedRef.current.has(message.id) && !message.contentLoaded,
+    );
+    if (!pending.length) return;
+
+    pending.forEach(message => detailLoadedRef.current.add(message.id));
+    Promise.all(
+      pending.map(async message => {
+        try {
+          const response = await fetch(apiUrl(`/flow/messages/${message.id}`), {
+            credentials: 'include',
+            headers: flowHeaders(),
+          });
+          const data = await responseJson<{ message: BackendMessage }>(response);
+          return toMailMessage(data.message);
+        } catch (error) {
+          detailLoadedRef.current.delete(message.id);
+          throw error;
+        }
+      }),
+    )
+      .then(details => {
+        setMessages(current => current.map(message => {
+          const detail = details.find(item => item.id === message.id);
+          return detail ? { ...message, ...detail } : message;
+        }));
+        const draft = details.find(message => message.folder === 'drafts');
+        if (draft && selectedThread.latest.folder === 'drafts') {
+          setDraftId(draft.id);
+          setComposeFields({
+            body: draft.body,
+            from: draft.from,
+            subject: draft.subject === '(no subject)' ? '' : draft.subject,
+            to: '',
+          });
+          setRecipientEmails(draft.to);
+          setComposeOpen(true);
+          window.requestAnimationFrame(() => {
+            if (composeEditorRef.current) composeEditorRef.current.innerHTML = draft.body;
+          });
+        }
+      })
+      .catch(error => {
+        setStatus({ kind: 'info', text: error instanceof Error ? error.message : 'Message details could not be loaded.' });
+      });
+  }, [selectedThread]);
 
   useEffect(() => {
     const controller = new AbortController();
@@ -1939,6 +1996,7 @@ export default function FlowConsole({
                 className={styles.messageList}
                 onScroll={event => {
                   const element = event.currentTarget;
+                  setListScrollTop(element.scrollTop);
                   if (element.scrollTop + element.clientHeight >= element.scrollHeight - 240) {
                     void loadNextPage();
                   }
@@ -1947,19 +2005,23 @@ export default function FlowConsole({
                 {isLoadingMessages && messages.length === 0 ? (
                   <div className={styles.loadingState}>Loading mail...</div>
                 ) : visibleThreads.length ? (
-                  visibleThreads.map(thread => (
-                    <MessageRow
-                      isSelected={selectedIdSet.has(thread.id)}
-                      key={thread.id}
-                      onKeyDown={openMessageFromKeyboard}
-                      onOpenCompose={openComposeToContact}
-                      onSelect={openMessage}
-                      onShowStatus={showContactToolStatus}
-                      onToggleSelect={toggleSelected}
-                      onToggleStarred={toggleStarred}
-                      thread={thread}
-                    />
-                  ))
+                  <>
+                    <div style={{ height: virtualStart * 44 }} />
+                    {renderedThreads.map(thread => (
+                      <MessageRow
+                        isSelected={selectedIdSet.has(thread.id)}
+                        key={thread.id}
+                        onKeyDown={openMessageFromKeyboard}
+                        onOpenCompose={openComposeToContact}
+                        onSelect={openMessage}
+                        onShowStatus={showContactToolStatus}
+                        onToggleSelect={toggleSelected}
+                        onToggleStarred={toggleStarred}
+                        thread={thread}
+                      />
+                    ))}
+                    <div style={{ height: Math.max(0, (visibleThreads.length - virtualEnd) * 44) }} />
+                  </>
                 ) : (
                   <div className={styles.emptyState}>
                     <div className={styles.emptyIcon}>
