@@ -10,7 +10,6 @@ import {
   ChevronLeft,
   ChevronRight,
   CircleHelp,
-  Clock3,
   EllipsisVertical,
   ExternalLink,
   FileText,
@@ -18,7 +17,6 @@ import {
   Grid3X3,
   Image as ImageIcon,
   Italic,
-  KeyRound,
   Keyboard,
   Link2,
   List,
@@ -27,7 +25,6 @@ import {
   ListOrdered,
   Loader2,
   LockKeyhole,
-  LogOut,
   Mail,
   Maximize2,
   Menu,
@@ -38,7 +35,6 @@ import {
   Palette,
   Paperclip,
   PenLine,
-  Pencil,
   Printer,
   Quote,
   Redo2,
@@ -49,7 +45,6 @@ import {
   SlidersHorizontal,
   Smile,
   Sparkles,
-  ShieldCheck,
   Star,
   Strikethrough,
   Triangle,
@@ -57,7 +52,6 @@ import {
   Type,
   Underline,
   Undo2,
-  UserCircle,
   X,
 } from 'lucide-react';
 import type {
@@ -70,6 +64,9 @@ import type {
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { FlowMark } from '@/components/brand/FlowMark';
 import { ContactHoverCard } from '@/components/flow-console/ContactHoverCard';
+import { AccountMenu } from '@/components/flow-console/AccountMenu';
+import { DeleteConfirmDialog } from '@/components/flow-console/DeleteConfirmDialog';
+import { FlowSidebar } from '@/components/flow-console/FlowSidebar';
 import { ManageSendersModal } from '@/components/flow-console/ManageSendersModal';
 import { MessageRow } from '@/components/MessageRow';
 import { useDebounce } from '@/hooks/useDebounce';
@@ -79,7 +76,6 @@ import {
   defaultConfig,
   emptyFolderCounts,
   emptyStates,
-  folderItems,
   fontFamilies,
   fontSizes,
   initialCompose,
@@ -94,9 +90,7 @@ import {
 import {
   formatFileSize,
   formatMessageDate,
-  formatSessionExpiry,
   getFolderLabel,
-  getInitial,
   getMessageFolderLabel,
   sentTrackingKind,
   sentTrackingLabel,
@@ -239,7 +233,6 @@ export default function FlowConsole({
 
   const selectedFolderTitle = getFolderLabel(activeFolder);
   const activeEmptyState = emptyStates[activeFolder];
-  const accountInitial = getInitial(accessSession.keyLabel);
   const composeFrom = composeFields.from || config.defaultFrom;
   const composeRecipients = useMemo(
     () => [
@@ -258,7 +251,6 @@ export default function FlowConsole({
       ),
     [composeAttachments],
   );
-  const sessionExpiry = formatSessionExpiry(accessSession.expiresAt);
   const canWrite = accessSession.permission !== 'read';
   const unreadCount = useMemo(
     () => allThreads.filter(thread => thread.unread).length,
@@ -1111,6 +1103,12 @@ export default function FlowConsole({
     composeAttachments.length > 0;
 
   const saveDraftAndClose = async () => {
+    if (!canWrite) {
+      setComposeOpen(false);
+      resetCompose();
+      return;
+    }
+
     const body = currentComposeBody();
 
     if (hasDraftContent) {
@@ -1146,7 +1144,7 @@ export default function FlowConsole({
   };
 
   const openComposeToContact = (contact: ContactPreview) => {
-    if (!contact.email) return;
+    if (!canWrite || !contact.email) return;
 
     resetCompose();
     setRecipientEmails([contact.email]);
@@ -1273,6 +1271,7 @@ export default function FlowConsole({
 
   const submitCompose = async (event: FormEvent<HTMLFormElement>) => {
     event.preventDefault();
+    if (!canWrite) return;
     if (sendLockRef.current) return;
 
     const recipients = composeRecipients;
@@ -1474,66 +1473,13 @@ export default function FlowConsole({
               ) : null}
             </section>
           ) : null}
-          <div className={styles.accountWrap} ref={accountMenuRef}>
-            <button
-              aria-expanded={accountOpen}
-              aria-label="Account details"
-              className={styles.accountButton}
-              data-tooltip="Account"
-              onClick={() => setAccountOpen(open => !open)}
-              type="button"
-            >
-              <span aria-hidden="true">{accountInitial}</span>
-              <UserCircle size={25} />
-            </button>
-
-            {accountOpen ? (
-              <section className={styles.accountMenu} aria-label="Account details">
-                <div className={styles.accountSummary}>
-                  <span className={styles.accountAvatar} aria-hidden="true">
-                    {accountInitial}
-                  </span>
-                  <div>
-                    <strong>{accessSession.keyLabel}</strong>
-                    <span>Registered Flow access key</span>
-                  </div>
-                </div>
-
-                <div className={styles.accountDetail}>
-                  <KeyRound size={16} />
-                  <div>
-                    <span>Authenticated as</span>
-                    <strong>{accessSession.keyLabel}</strong>
-                  </div>
-                </div>
-
-                <div className={styles.accountDetail}>
-                  <Clock3 size={16} />
-                  <div>
-                    <span>Session expires</span>
-                    <strong>{sessionExpiry}</strong>
-                  </div>
-                </div>
-
-                <div className={styles.accountDetail}>
-                  <ShieldCheck size={16} />
-                  <div>
-                    <span>Access level</span>
-                    <strong>{accessSession.permission === 'full' ? 'Full access' : `${accessSession.permission[0].toUpperCase()}${accessSession.permission.slice(1)} access`}</strong>
-                  </div>
-                </div>
-
-                <button
-                  className={styles.lockButton}
-                  onClick={() => void onLock()}
-                  type="button"
-                >
-                  <LogOut size={16} />
-                  Lock Flow
-                </button>
-              </section>
-            ) : null}
-          </div>
+          <AccountMenu
+            containerRef={accountMenuRef}
+            isOpen={accountOpen}
+            onLock={onLock}
+            onToggle={() => setAccountOpen(open => !open)}
+            session={accessSession}
+          />
         </div>
       </header>
 
@@ -1545,42 +1491,13 @@ export default function FlowConsole({
         }
       >
         {sidebarOpen ? (
-          <aside className={styles.sidebar}>
-            <button
-              className={styles.composeButton}
-              onClick={() => setComposeOpen(true)}
-              type="button"
-            >
-              <Pencil size={20} />
-              Compose
-            </button>
-
-            <nav className={styles.folderList} aria-label="Mail folders">
-              {folderItems.map(item => {
-                const Icon = item.icon;
-                const isActive = activeFolder === item.folder;
-
-                return (
-                  <button
-                    className={
-                      isActive
-                        ? `${styles.folderButton} ${styles.folderActive}`
-                        : styles.folderButton
-                    }
-                    key={item.folder}
-                    onClick={() => changeFolder(item.folder)}
-                    type="button"
-                  >
-                    <Icon size={18} />
-                    <span>{item.title}</span>
-                    {folderCounts[item.folder] ? (
-                      <strong>{folderCounts[item.folder]}</strong>
-                    ) : null}
-                  </button>
-                );
-              })}
-            </nav>
-          </aside>
+          <FlowSidebar
+            activeFolder={activeFolder}
+            canWrite={canWrite}
+            folderCounts={folderCounts}
+            onCompose={() => setComposeOpen(true)}
+            onFolderChange={changeFolder}
+          />
         ) : null}
 
         <section className={styles.contentPane}>
@@ -2023,44 +1940,12 @@ export default function FlowConsole({
       </section>
 
       {deleteConfirm ? (
-        <div
-          aria-label={deleteConfirm.title}
-          aria-modal="true"
-          className={styles.confirmOverlay}
-          role="dialog"
-        >
-          <section className={styles.confirmDialog}>
-            <h2>{deleteConfirm.title}</h2>
-            <p>{deleteConfirm.body}</p>
-            <div className={styles.confirmActions}>
-              <button
-                className={styles.cancelButton}
-                disabled={isDeleting}
-                onClick={() => setDeleteConfirm(null)}
-                type="button"
-              >
-                Cancel
-              </button>
-              <button
-                className={styles.dangerConfirmButton}
-                disabled={isDeleting}
-                onClick={confirmDelete}
-                type="button"
-              >
-                {isDeleting ? (
-                  <>
-                    <Loader2 className={styles.spin} size={16} />
-                    Deleting
-                  </>
-                ) : deleteConfirm.permanent ? (
-                  'Delete forever'
-                ) : (
-                  'Move to Bin'
-                )}
-              </button>
-            </div>
-          </section>
-        </div>
+        <DeleteConfirmDialog
+          confirm={deleteConfirm}
+          isDeleting={isDeleting}
+          onCancel={() => setDeleteConfirm(null)}
+          onConfirm={confirmDelete}
+        />
       ) : null}
 
       {composeOpen ? (
