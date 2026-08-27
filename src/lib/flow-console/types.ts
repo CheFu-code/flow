@@ -148,6 +148,7 @@ export type BackendMessage = {
 export type BackendMessagesResponse = {
   counts?: Partial<Record<string, number>>;
   messages?: BackendMessage[];
+  nextCursor?: string | null;
 };
 
 export type ServerSentEvent = {

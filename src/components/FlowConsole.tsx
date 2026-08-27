@@ -178,6 +178,7 @@ export default function FlowConsole({
   const [composeFields, setComposeFields] =
     useState<ComposeFields>(initialCompose);
   const [composeOpen, setComposeOpen] = useState(false);
+  const [draftId, setDraftId] = useState<string | null>(null);
   const [config, setConfig] = useState<FlowConfig>(defaultConfig);
   const [deleteConfirm, setDeleteConfirm] = useState<DeleteConfirm | null>(
     null,
@@ -187,6 +188,8 @@ export default function FlowConsole({
   const [isDeleting, setIsDeleting] = useState(false);
   const [isLoadingMessages, setIsLoadingMessages] = useState(true);
   const [isSending, setIsSending] = useState(false);
+  const [isSavingDraft, setIsSavingDraft] = useState(false);
+  const [isLoadingMore, setIsLoadingMore] = useState(false);
   const [manageSendersOpen, setManageSendersOpen] = useState(false);
   const [emojiPickerOpen, setEmojiPickerOpen] = useState(false);
   const [formatToolbarOpen, setFormatToolbarOpen] = useState(true);
@@ -195,6 +198,7 @@ export default function FlowConsole({
     readMailboxCache('inbox'),
   );
   const [messageMenuId, setMessageMenuId] = useState<string | null>(null);
+  const [nextCursor, setNextCursor] = useState<string | null>(null);
   const [query, setQuery] = useState('');
   const [readerMoreOpen, setReaderMoreOpen] = useState(false);
   const [readerMoveOpen, setReaderMoveOpen] = useState(false);
@@ -375,8 +379,12 @@ export default function FlowConsole({
 
     const applyMessages = (data: BackendMessagesResponse) => {
       const nextMessages = (data.messages || []).map(toMailMessage);
-      setMessages(nextMessages);
+      setMessages(current => {
+        const incomingIds = new Set(nextMessages.map(message => message.id));
+        return [...nextMessages, ...current.filter(message => !incomingIds.has(message.id))];
+      });
       setFolderCounts(mapCounts(data.counts));
+      setNextCursor(data.nextCursor || null);
       setIsLoadingMessages(false);
       writeMailboxCache(activeFolder, nextMessages);
     };
@@ -445,6 +453,7 @@ export default function FlowConsole({
   const changeFolder = (folder: MailFolder) => {
     const cachedMessages = readMailboxCache(folder);
     setMessages(cachedMessages);
+    setNextCursor(null);
     setIsLoadingMessages(cachedMessages.length === 0);
     setActiveFolder(folder);
     setReaderMoreOpen(false);
@@ -453,6 +462,28 @@ export default function FlowConsole({
     setSelectedIds([]);
     setSelectedMessageId(null);
     setStatus(null);
+  };
+
+  const loadNextPage = async () => {
+    if (!nextCursor || isLoadingMore) return;
+    setIsLoadingMore(true);
+    try {
+      const response = await fetch(
+        apiUrl(`/flow/messages?folder=${backendFolderFor(activeFolder)}&cursor=${encodeURIComponent(nextCursor)}`),
+        { credentials: 'include', headers: flowHeaders() },
+      );
+      const data = await responseJson<BackendMessagesResponse>(response);
+      const olderMessages = (data.messages || []).map(toMailMessage);
+      setMessages(current => {
+        const ids = new Set(current.map(message => message.id));
+        return [...current, ...olderMessages.filter(message => !ids.has(message.id))];
+      });
+      setNextCursor(data.nextCursor || null);
+    } catch (error) {
+      setStatus({ kind: 'info', text: error instanceof Error ? error.message : 'Older messages could not be loaded.' });
+    } finally {
+      setIsLoadingMore(false);
+    }
   };
 
   const openMessage = (threadId: string) => {
@@ -1081,6 +1112,7 @@ export default function FlowConsole({
   };
 
   const resetCompose = () => {
+    setDraftId(null);
     setComposeFields(initialCompose);
     setComposeAttachments([]);
     setComposeExpanded(false);
@@ -1098,7 +1130,7 @@ export default function FlowConsole({
     composeAttachments.length > 0;
 
   const saveDraftAndClose = async () => {
-    if (!canWrite) {
+    if (!canWrite || isSavingDraft) {
       setComposeOpen(false);
       resetCompose();
       return;
@@ -1107,10 +1139,12 @@ export default function FlowConsole({
     const body = currentComposeBody();
 
     if (hasDraftContent) {
+      setIsSavingDraft(true);
       try {
-        await fetch(apiUrl('/flow/drafts'), {
+        const saved = await fetch(apiUrl('/flow/drafts'), {
           body: JSON.stringify({
             body,
+            ...(draftId ? { draftId } : {}),
             from: composeFrom,
             subject: composeFields.subject,
             to: composeRecipients,
@@ -1118,13 +1152,16 @@ export default function FlowConsole({
           credentials: 'include',
           headers: { 'Content-Type': 'application/json', ...flowHeaders() },
           method: 'POST',
-        }).then(response => responseJson(response));
+        }).then(response => responseJson<{ draftId?: string }>(response));
+        if (saved.draftId) setDraftId(saved.draftId);
         setStatus({ kind: 'success', text: 'Draft saved.' });
       } catch (error) {
         setStatus({
           kind: 'info',
           text: error instanceof Error ? error.message : 'Draft save failed.',
         });
+      } finally {
+        setIsSavingDraft(false);
       }
     }
 
@@ -1898,7 +1935,15 @@ export default function FlowConsole({
                 </div>
               ) : null}
 
-              <div className={styles.messageList}>
+              <div
+                className={styles.messageList}
+                onScroll={event => {
+                  const element = event.currentTarget;
+                  if (element.scrollTop + element.clientHeight >= element.scrollHeight - 240) {
+                    void loadNextPage();
+                  }
+                }}
+              >
                 {isLoadingMessages && messages.length === 0 ? (
                   <div className={styles.loadingState}>Loading mail...</div>
                 ) : visibleThreads.length ? (
@@ -1926,6 +1971,7 @@ export default function FlowConsole({
                     ) : null}
                   </div>
                 )}
+                {isLoadingMore ? <div className={styles.loadingState}>Loading older mail...</div> : null}
               </div>
             </div>
           )}
@@ -1964,7 +2010,7 @@ export default function FlowConsole({
                   aria-label="Minimize compose"
                   className={styles.composeIconButton}
                   data-tooltip="Minimize"
-                  disabled={isSending}
+                  disabled={isSending || isSavingDraft}
                   onClick={saveDraftAndClose}
                   type="button"
                 >
@@ -1978,7 +2024,7 @@ export default function FlowConsole({
                   data-tooltip={
                     composeExpanded ? 'Exit full screen' : 'Full screen'
                   }
-                  disabled={isSending}
+                  disabled={isSending || isSavingDraft}
                   onClick={() => setComposeExpanded(value => !value)}
                   type="button"
                 >
@@ -1992,7 +2038,7 @@ export default function FlowConsole({
                   aria-label="Close compose"
                   className={styles.composeIconButton}
                   data-tooltip="Save and close"
-                  disabled={isSending}
+                  disabled={isSending || isSavingDraft}
                   onClick={saveDraftAndClose}
                   type="button"
                 >
