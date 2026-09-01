@@ -136,7 +136,12 @@ export function MailboxList({
                         {activeEmptyState.subHeading ? <p>{activeEmptyState.subHeading}</p> : null}
                     </div>
                 )}
-                {isLoadingMore ? <div className={styles.loadingState}>Loading older mail...</div> : null}
+                {isLoadingMore ? (
+                    <div className={styles.loadingMore} role="status" aria-live="polite">
+                        <span className={styles.loadingSpinner} aria-hidden="true" />
+                        Loading older mail...
+                    </div>
+                ) : null}
             </div>
         </div>
     );
@@ -144,9 +149,10 @@ export function MailboxList({
 
 function MailboxSkeleton() {
     return (
-        <div className={styles.mailboxSkeleton} aria-label="Loading mailbox" role="status">
+        <div className={styles.mailboxSkeleton} role="status" aria-live="polite">
+            <p className={styles.loadingLabel}>Loading your mailbox</p>
             {Array.from({ length: 8 }, (_, index) => (
-                <div className={styles.skeletonRow} key={index}>
+                <div className={styles.skeletonRow} style={{ animationDelay: `${index * 45}ms` }} key={index}>
                     <span className={styles.skeletonBlock} />
                     <span className={`${styles.skeletonBlock} ${styles.skeletonSender}`} />
                     <span className={`${styles.skeletonBlock} ${styles.skeletonPreview}`} />

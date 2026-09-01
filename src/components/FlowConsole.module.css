@@ -906,7 +906,16 @@
 .mailboxSkeleton {
   display: grid;
   gap: 1px;
+  min-height: 100%;
   padding: 8px 10px;
+}
+
+.loadingLabel {
+  margin: 4px 8px 10px;
+  color: #64748b;
+  font-size: 12px;
+  font-weight: 600;
+  letter-spacing: 0.01em;
 }
 
 .skeletonRow {
@@ -916,6 +925,8 @@
   align-items: center;
   gap: 12px;
   border-bottom: 1px solid #f1f3f4;
+  opacity: 0;
+  animation: skeletonRowIn 280ms ease forwards;
 }
 
 .skeletonBlock {
@@ -934,6 +945,43 @@
 @keyframes skeletonPulse {
   0%, 100% { background-position: 0 0; }
   50% { background-position: 100% 0; }
+}
+
+@keyframes skeletonRowIn {
+  from { opacity: 0; transform: translateY(4px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+
+.loadingMore {
+  display: flex;
+  min-height: 44px;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  color: #64748b;
+  font-size: 12px;
+  font-weight: 600;
+}
+
+.loadingSpinner {
+  width: 14px;
+  height: 14px;
+  border: 2px solid #ccfbf1;
+  border-top-color: #0f766e;
+  border-radius: 50%;
+  animation: spin 700ms linear infinite;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .skeletonRow,
+  .skeletonBlock,
+  .loadingSpinner {
+    animation: none;
+  }
+
+  .skeletonRow {
+    opacity: 1;
+  }
 }
 
 .srOnly {
