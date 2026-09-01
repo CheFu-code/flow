@@ -2,6 +2,8 @@
 
 import type { MouseEvent } from 'react';
 import { ExternalLink, Printer } from 'lucide-react';
+import { Badge } from '@/components/ui/badge';
+import { Button } from '@/components/ui/button';
 import { ReaderMessageItem } from './ReaderMessageItem';
 import { ReaderQuickReply } from './ReaderQuickReply';
 import { ReaderToolbar } from './ReaderToolbar';
@@ -79,33 +81,38 @@ export function ReaderView({
       />
 
       <div className={styles.readerHeaderLine}>
-        <h1 className={styles.readerSubject}>
-          <span>{selectedThread.subject}</span>
-          <span className={styles.readerSubjectBadge}>
+        <div className="flex items-baseline gap-3 flex-wrap min-w-0 flex-1">
+          <h1 className="text-xl sm:text-2xl font-semibold text-foreground tracking-tight m-0 truncate">
+            {selectedThread.subject}
+          </h1>
+          <Badge variant="brand" className="font-semibold text-xs shrink-0">
             {selectedThread.count > 1
               ? `${selectedThread.count} messages`
               : getMessageFolderLabel(selectedThread.latest.folder)}
-          </span>
-        </h1>
-        <div className={styles.readerSubjectActions}>
-          <button
+          </Badge>
+        </div>
+
+        <div className="flex items-center gap-1 shrink-0">
+          <Button
             aria-label="Print entire conversation"
-            className={styles.readerIconButton}
-            data-tooltip="Print all"
+            className="size-8 text-muted-foreground hover:text-foreground"
             onClick={onPrint}
+            size="icon-sm"
             type="button"
+            variant="ghost"
           >
-            <Printer size={18} />
-          </button>
-          <button
+            <Printer className="size-4" />
+          </Button>
+          <Button
             aria-label="Open conversation in new window"
-            className={styles.readerIconButton}
-            data-tooltip="Open in new window"
+            className="size-8 text-muted-foreground hover:text-foreground"
             onClick={onOpenNewWindow}
+            size="icon-sm"
             type="button"
+            variant="ghost"
           >
-            <ExternalLink size={18} />
-          </button>
+            <ExternalLink className="size-4" />
+          </Button>
         </div>
       </div>
 

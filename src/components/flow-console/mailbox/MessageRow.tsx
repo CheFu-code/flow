@@ -2,6 +2,7 @@
 
 import { memo, type KeyboardEvent, type MouseEvent } from 'react';
 import { Paperclip, Star } from 'lucide-react';
+import { Badge } from '@/components/ui/badge';
 import { ContactHoverCard } from '@/components/flow-console/modals/ContactHoverCard';
 import {
   formatListDate,
@@ -23,6 +24,20 @@ export interface MessageRowProps {
   onKeyDown: (event: KeyboardEvent<HTMLDivElement>, threadId: string) => void;
 }
 
+function getTrackingVariant(kind: string): 'success' | 'info' | 'secondary' | 'destructive' {
+  switch (kind) {
+    case 'open':
+      return 'success';
+    case 'delivered':
+      return 'info';
+    case 'warning':
+      return 'destructive';
+    case 'pending':
+    default:
+      return 'secondary';
+  }
+}
+
 export const MessageRow = memo(function MessageRow({
   thread,
   isSelected,
@@ -35,6 +50,7 @@ export const MessageRow = memo(function MessageRow({
 }: MessageRowProps) {
   const message = thread.latest;
   const contact = contactFromMessage(message);
+  const trackingKind = sentTrackingKind(message);
 
   return (
     <div
@@ -103,13 +119,12 @@ export const MessageRow = memo(function MessageRow({
         ) : null}
 
         {message.direction === 'outbound' ? (
-          <strong
-            className={`${styles.trackingBadge} ${
-              styles[`tracking${sentTrackingKind(message)}`]
-            }`}
+          <Badge
+            variant={getTrackingVariant(trackingKind)}
+            className="text-[11px] font-semibold px-2 py-0 h-5"
           >
             {sentTrackingLabel(message, true)}
-          </strong>
+          </Badge>
         ) : null}
 
         {message.attachments > 0 ? (
@@ -123,12 +138,13 @@ export const MessageRow = memo(function MessageRow({
         ) : null}
 
         {thread.count > 1 ? (
-          <strong
+          <Badge
+            variant="count"
+            className="h-5 text-[11px]"
             aria-label={`${thread.count} messages in thread`}
-            className={styles.threadCount}
           >
             {thread.count}
-          </strong>
+          </Badge>
         ) : null}
       </div>
 

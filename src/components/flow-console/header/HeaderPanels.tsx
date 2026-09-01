@@ -1,7 +1,7 @@
 'use client';
 
-import { AtSign, Palette, Settings, Sparkles } from 'lucide-react';
-import styles from '@/components/FlowConsole.module.css';
+import { AtSign, Check, Palette, Settings, Sparkles } from 'lucide-react';
+import { Button } from '@/components/ui/button';
 
 export interface HeaderPanelsProps {
   activePanel: 'settings' | null;
@@ -23,54 +23,66 @@ export function HeaderPanels({
   return (
     <section
       aria-label="Settings panel"
-      className={styles.headerPanel}
+      className="absolute right-12 top-[calc(100%+8px)] z-50 flex w-72 flex-col gap-2 rounded-2xl border bg-card p-3 text-card-foreground shadow-2xl animate-in fade-in-0 zoom-in-95 duration-150"
     >
       {activePanel === 'settings' ? (
         <>
-          <div className={styles.headerPanelTitle}>
-            <Settings size={16} />
-            <strong>Preferences &amp; Senders</strong>
+          <div className="flex items-center gap-2 border-b px-2 py-2 pb-2.5">
+            <div className="flex size-7 items-center justify-center rounded-lg bg-teal-500/10 text-teal-700 dark:text-teal-300">
+              <Settings className="size-4" />
+            </div>
+            <strong className="text-xs font-semibold text-foreground">
+              Preferences &amp; Senders
+            </strong>
           </div>
-          <div className={styles.headerPanelList}>
+
+          <div className="flex flex-col gap-1 text-xs">
             <button
+              className="flex w-full items-center gap-2.5 rounded-lg px-2.5 py-2 text-left text-xs font-medium text-foreground transition-colors hover:bg-muted"
               onClick={() => {
                 onClosePanel();
                 onOpenManageSenders();
               }}
               type="button"
             >
-              <AtSign size={15} />
-              <span>Manage sender addresses (@chefu.co.za)</span>
+              <AtSign className="size-4 text-muted-foreground" />
+              <span>Manage senders (@chefu.co.za)</span>
             </button>
+
             <button
+              className="flex w-full items-center gap-2.5 rounded-lg px-2.5 py-2 text-left text-xs font-medium text-foreground transition-colors hover:bg-muted"
               onClick={() => {
                 onSetDensity('comfortable');
                 onClosePanel();
               }}
               type="button"
             >
-              <Palette size={15} />
+              <Palette className="size-4 text-muted-foreground" />
               <span>Comfortable display density</span>
             </button>
+
             <button
+              className="flex w-full items-center gap-2.5 rounded-lg px-2.5 py-2 text-left text-xs font-medium text-foreground transition-colors hover:bg-muted"
               onClick={() => {
                 onSetDensity('compact');
                 onClosePanel();
               }}
               type="button"
             >
-              <Palette size={15} />
+              <Palette className="size-4 text-muted-foreground" />
               <span>Compact display density</span>
             </button>
+
             <button
+              className="flex w-full items-center gap-2.5 rounded-lg px-2.5 py-2 text-left text-xs font-medium text-foreground transition-colors hover:bg-muted"
               onClick={() => {
                 onToggleFormatToolbar();
                 onClosePanel();
               }}
               type="button"
             >
-              <Sparkles size={15} />
-              <span>Toggle compose format toolbar</span>
+              <Sparkles className="size-4 text-muted-foreground" />
+              <span>Toggle formatting toolbar</span>
             </button>
           </div>
         </>

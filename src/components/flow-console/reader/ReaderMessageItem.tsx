@@ -9,6 +9,7 @@ import {
   Smile,
   Star,
 } from 'lucide-react';
+import { Badge } from '@/components/ui/badge';
 import { ContactHoverCard } from '@/components/flow-console/modals/ContactHoverCard';
 import { ReactionPicker } from './ReactionPicker';
 import {
@@ -38,6 +39,20 @@ export interface ReaderMessageItemProps {
   thread: MailThread;
 }
 
+function getTrackingVariant(kind: string): 'success' | 'info' | 'secondary' | 'destructive' {
+  switch (kind) {
+    case 'open':
+      return 'success';
+    case 'delivered':
+      return 'info';
+    case 'warning':
+      return 'destructive';
+    case 'pending':
+    default:
+      return 'secondary';
+  }
+}
+
 export function ReaderMessageItem({
   message,
   onAddReaction,
@@ -55,6 +70,7 @@ export function ReaderMessageItem({
   const contact = contactFromMessage(message);
   const initial = getInitial(message.name || message.from);
   const isLast = isLastVisibleMessage(thread, message);
+  const trackingKind = sentTrackingKind(message);
 
   return (
     <section aria-label={`Message from ${contact.name}`} className={styles.readerMessage}>
@@ -199,12 +215,13 @@ export function ReaderMessageItem({
           </div>
 
           {message.direction === 'outbound' ? (
-            <div
-              className={`${styles.trackingLine} ${
-                styles[`tracking${sentTrackingKind(message)}`]
-              }`}
-            >
-              {sentTrackingLabel(message)}
+            <div className="pt-1">
+              <Badge
+                variant={getTrackingVariant(trackingKind)}
+                className="text-xs font-semibold px-2.5 py-1"
+              >
+                {sentTrackingLabel(message)}
+              </Badge>
             </div>
           ) : null}
 
@@ -216,15 +233,16 @@ export function ReaderMessageItem({
           />
 
           {isLast && thread.reactions.length > 0 ? (
-            <div aria-label="Message reactions" className={styles.reactionRow}>
+            <div aria-label="Message reactions" className="flex flex-wrap gap-1.5 pt-2">
               {thread.reactions.map(reaction => (
-                <span
-                  className={styles.reactionChip}
+                <Badge
                   key={`${reaction.emoji}-${reaction.from}`}
+                  variant="secondary"
+                  className="gap-1 px-2 py-0.5 text-xs font-semibold rounded-full bg-muted/80 hover:bg-muted text-foreground border"
                 >
                   <span aria-hidden="true">{reaction.emoji}</span>
-                  <strong>{reaction.count}</strong>
-                </span>
+                  <span>{reaction.count}</span>
+                </Badge>
               ))}
             </div>
           ) : null}

@@ -1,6 +1,7 @@
 'use client';
 
 import { Pencil } from 'lucide-react';
+import { Badge } from '@/components/ui/badge';
 import { folderItems } from '@/lib/flow-console/constants';
 import type { MailFolder } from '@/lib/flow-console/types';
 import styles from '@/components/FlowConsole.module.css';
@@ -62,12 +63,13 @@ export function FlowSidebar({
               <Icon className={styles.folderIcon} size={18} />
               <span className={styles.folderTitle}>{item.title}</span>
               {count > 0 ? (
-                <strong
+                <Badge
+                  variant={isActive ? 'brand' : 'secondary'}
+                  className="h-5 text-[11px] font-semibold px-1.5 min-w-[20px] justify-center ml-auto"
                   aria-label={`${count} messages in ${item.title}`}
-                  className={styles.folderCount}
                 >
                   {count}
-                </strong>
+                </Badge>
               ) : null}
             </button>
           );

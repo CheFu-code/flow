@@ -1,8 +1,16 @@
 'use client';
 
-import { Loader2 } from 'lucide-react';
+import { Loader2, Trash2 } from 'lucide-react';
+import { Button } from '@/components/ui/button';
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+} from '@/components/ui/dialog';
 import type { DeleteConfirm } from '@/lib/flow-console/types';
-import styles from '@/components/FlowConsole.module.css';
 
 export type DeleteConfirmDialogProps = {
   confirm: DeleteConfirm;
@@ -18,43 +26,51 @@ export function DeleteConfirmDialog({
   onConfirm,
 }: DeleteConfirmDialogProps) {
   return (
-    <div
-      aria-label={confirm.title}
-      aria-modal="true"
-      className={styles.confirmOverlay}
-      role="dialog"
+    <Dialog
+      open={true}
+      onOpenChange={open => {
+        if (!open && !isDeleting) onCancel();
+      }}
     >
-      <section className={styles.confirmDialog}>
-        <h2>{confirm.title}</h2>
-        <p>{confirm.body}</p>
-        <div className={styles.confirmActions}>
-          <button
-            className={styles.cancelButton}
+      <DialogContent className="max-w-md gap-5">
+        <DialogHeader className="gap-2 text-left">
+          <div className="flex size-10 items-center justify-center rounded-xl bg-destructive/10 text-destructive mb-1">
+            <Trash2 className="size-5" />
+          </div>
+          <DialogTitle>{confirm.title}</DialogTitle>
+          <DialogDescription className="text-sm leading-relaxed">
+            {confirm.body}
+          </DialogDescription>
+        </DialogHeader>
+
+        <DialogFooter className="gap-2 sm:gap-2">
+          <Button
             disabled={isDeleting}
             onClick={onCancel}
             type="button"
+            variant="outline"
           >
             Cancel
-          </button>
-          <button
-            className={styles.dangerConfirmButton}
+          </Button>
+          <Button
             disabled={isDeleting}
             onClick={onConfirm}
             type="button"
+            variant="destructive"
           >
             {isDeleting ? (
               <>
-                <Loader2 className={styles.spin} size={16} />
-                Deleting
+                <Loader2 className="size-4 animate-spin mr-1.5" />
+                Deleting...
               </>
             ) : confirm.permanent ? (
               'Delete forever'
             ) : (
               'Move to Bin'
             )}
-          </button>
-        </div>
-      </section>
-    </div>
+          </Button>
+        </DialogFooter>
+      </DialogContent>
+    </Dialog>
   );
 }
