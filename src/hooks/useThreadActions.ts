@@ -5,6 +5,7 @@ import { apiUrl, flowHeaders } from '@/lib/api';
 import { formatMessageDate } from '@/lib/flow-console/format';
 import { responseJson } from '@/lib/flow-console/http';
 import { contactFromMessage, threadDeleteCopy } from '@/lib/flow-console/mail';
+import { realtimeBus } from '@/lib/flow-console/realtime';
 import { renderReaderPrintDocument } from '@/lib/flow-console/reader';
 import type {
   AccessSession,
@@ -73,7 +74,7 @@ export function useThreadActions({
     setSelectedIds([]);
   }, []);
 
-  // Open thread and mark messages as read
+  // Open thread and mark messages as read in real time
   const openThread = useCallback(
     (threadId: string) => {
       const thread = visibleThreads.find(item => item.id === threadId);
@@ -87,12 +88,15 @@ export function useThreadActions({
 
       if (!unreadMessageIds.length) return;
 
-      // Optimistic mark read
+      // Optimistic mark read locally
       setMessages(current =>
         current.map(item =>
           unreadMessageIds.includes(item.id) ? { ...item, unread: false } : item,
         ),
       );
+
+      // Broadcast to other tabs immediately
+      realtimeBus.publish({ type: 'MARK_READ', messageIds: unreadMessageIds });
 
       Promise.all(
         unreadMessageIds.map(messageId =>
@@ -109,23 +113,28 @@ export function useThreadActions({
             unreadMessageIds.includes(item.id) ? { ...item, unread: true } : item,
           ),
         );
+        realtimeBus.publish({ type: 'MARK_UNREAD', messageIds: unreadMessageIds });
       });
     },
     [setSelectedThreadId, setMessages, visibleThreads],
   );
 
-  // Toggle star on a message
+  // Toggle star on a message in real time
   const toggleStarred = useCallback(
     (event: MouseEvent, messageId: string) => {
       event.stopPropagation();
       const message = messages.find(item => item.id === messageId);
       const starred = !message?.starred;
 
+      // Optimistic local update
       setMessages(current =>
         current.map(item =>
           item.id === messageId ? { ...item, starred } : item,
         ),
       );
+
+      // Broadcast to other tabs
+      realtimeBus.publish({ type: 'STAR', messageId, starred });
 
       fetch(apiUrl(`/flow/messages/${messageId}/star`), {
         body: JSON.stringify({ starred }),
@@ -142,6 +151,11 @@ export function useThreadActions({
                 : item,
             ),
           );
+          realtimeBus.publish({
+            type: 'STAR',
+            messageId,
+            starred: Boolean(message?.starred),
+          });
           onStatusChange({
             kind: 'info',
             text: error instanceof Error ? error.message : 'Star update failed.',
@@ -173,6 +187,33 @@ export function useThreadActions({
       const messageIds = selectedThread.allMessages.map(message => message.id);
       if (!messageIds.length) return;
 
+      // Optimistic local update
+      setMessages(current =>
+        current.map(message =>
+          messageIds.includes(message.id)
+            ? {
+                ...message,
+                ...(folder ? { folder } : {}),
+                ...(typeof unread === 'boolean' ? { unread } : {}),
+              }
+            : message,
+        ),
+      );
+
+      // Broadcast to other tabs
+      if (folder) {
+        realtimeBus.publish({ type: 'MOVE_FOLDER', messageIds, folder });
+      }
+      if (typeof unread === 'boolean') {
+        realtimeBus.publish({
+          type: unread ? 'MARK_UNREAD' : 'MARK_READ',
+          messageIds,
+        });
+      }
+
+      onStatusChange({ kind: 'success', text: success });
+      if (!keepOpen) setSelectedThreadId(null);
+
       try {
         await Promise.all(
           messageIds.map(messageId =>
@@ -186,20 +227,6 @@ export function useThreadActions({
             }).then(response => responseJson(response)),
           ),
         );
-
-        setMessages(current =>
-          current.map(message =>
-            messageIds.includes(message.id)
-              ? {
-                  ...message,
-                  ...(folder ? { folder } : {}),
-                  ...(typeof unread === 'boolean' ? { unread } : {}),
-                }
-              : message,
-          ),
-        );
-        onStatusChange({ kind: 'success', text: success });
-        if (!keepOpen) setSelectedThreadId(null);
       } catch (error) {
         onStatusChange({
           kind: 'info',
@@ -292,32 +319,42 @@ export function useThreadActions({
 
     deleteLockRef.current = true;
     setIsDeleting(true);
+
+    const messageIds = deleteConfirm.messageIds;
+    const permanent = deleteConfirm.permanent;
+
+    // Optimistic deletion
+    setMessages(current =>
+      current.filter(msg => !messageIds.includes(msg.id)),
+    );
+    realtimeBus.publish({ type: 'DELETE', messageIds, permanent });
+
+    onStatusChange(
+      permanent
+        ? { kind: 'success', text: 'Selected conversations permanently deleted.' }
+        : { kind: 'info', text: 'Selected conversations moved to Bin.' },
+    );
+    setDeleteConfirm(null);
+    setSelectedIds([]);
+    setSelectedThreadId(null);
+
     try {
       await Promise.all(
-        deleteConfirm.messageIds.map(messageId =>
+        messageIds.map(messageId =>
           fetch(
             apiUrl(
-              deleteConfirm.permanent
+              permanent
                 ? `/flow/messages/${messageId}`
                 : `/flow/messages/${messageId}/trash`,
             ),
             {
               credentials: 'include',
               headers: flowHeaders(),
-              method: deleteConfirm.permanent ? 'DELETE' : 'POST',
+              method: permanent ? 'DELETE' : 'POST',
             },
           ).then(response => responseJson(response)),
         ),
       );
-
-      onStatusChange(
-        deleteConfirm.permanent
-          ? { kind: 'success', text: 'Selected conversations permanently deleted.' }
-          : { kind: 'info', text: 'Selected conversations moved to Bin.' },
-      );
-      setDeleteConfirm(null);
-      setSelectedIds([]);
-      setSelectedThreadId(null);
     } catch (error) {
       onStatusChange({
         kind: 'info',
@@ -327,11 +364,12 @@ export function useThreadActions({
       deleteLockRef.current = false;
       setIsDeleting(false);
     }
-  }, [deleteConfirm, onStatusChange, setSelectedThreadId]);
+  }, [deleteConfirm, onStatusChange, setMessages, setSelectedThreadId]);
 
   // Add emoji reaction
   const addReaction = useCallback(
     (messageId: string, emoji: string) => {
+      const from = accessSession.keyLabel;
       setMessages(current =>
         current.map(message =>
           message.id === messageId
@@ -339,11 +377,12 @@ export function useThreadActions({
                 ...message,
                 reactionCount: (message.reactionCount || 0) + 1,
                 reactionEmoji: emoji,
-                reactionFrom: accessSession.keyLabel,
+                reactionFrom: from,
               }
             : message,
         ),
       );
+      realtimeBus.publish({ type: 'REACTION', messageId, emoji, from });
       onStatusChange({ kind: 'success', text: `Reaction ${emoji} added.` });
     },
     [accessSession.keyLabel, onStatusChange, setMessages],

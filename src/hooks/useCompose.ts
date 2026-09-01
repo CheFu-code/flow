@@ -22,12 +22,14 @@ import {
   maxAttachmentBytes,
 } from '@/lib/flow-console/constants';
 import { responseJson } from '@/lib/flow-console/http';
+import { realtimeBus } from '@/lib/flow-console/realtime';
 import type {
   AccessSession,
   ComposeAttachment,
   ComposeFields,
   ContactPreview,
   FlowConfig,
+  MailMessage,
   StatusMessage,
 } from '@/lib/flow-console/types';
 
@@ -481,7 +483,30 @@ export function useCompose({
           headers: { 'Content-Type': 'application/json', ...flowHeaders() },
           method: 'POST',
         });
-        const data = await responseJson<{ count?: number }>(response);
+        const data = await responseJson<{ count?: number; messageId?: string }>(response);
+
+        // Optimistically publish new message to realtimeBus for all tabs
+        const sentMessage: MailMessage = {
+          attachments: composeAttachments.length,
+          body,
+          clickCount: 0,
+          contentLoaded: true,
+          date: new Date().toISOString(),
+          direction: 'outbound',
+          folder: 'sent',
+          from: composeFrom,
+          html: body,
+          id: data.messageId || `sent_${Date.now()}`,
+          name: 'Flow Mail',
+          openCount: 0,
+          preview: body.replace(/<[^>]+>/g, '').slice(0, 120),
+          references: [],
+          starred: false,
+          subject: composeFields.subject || '(no subject)',
+          to: recipients,
+          unread: false,
+        };
+        realtimeBus.publish({ type: 'NEW_MESSAGE', message: sentMessage });
 
         setComposeOpen(false);
         onStatusChange({

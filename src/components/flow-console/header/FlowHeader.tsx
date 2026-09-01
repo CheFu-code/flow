@@ -1,11 +1,12 @@
 'use client';
 
-import { CircleHelp, Grid3X3, Menu, Settings } from 'lucide-react';
+import { CircleHelp, Grid3X3, Loader2, Menu, Settings } from 'lucide-react';
 import type { RefObject } from 'react';
 import { FlowMark } from '@/components/brand/FlowMark';
 import { AccountMenu } from '@/components/flow-console/modals/AccountMenu';
 import { HeaderPanels } from './HeaderPanels';
 import { HeaderSearch } from './HeaderSearch';
+import type { ConnectionStatus } from '@/hooks/useMailbox';
 import type { AccessSession, MailFolder } from '@/lib/flow-console/types';
 import styles from '@/components/FlowConsole.module.css';
 
@@ -14,6 +15,7 @@ export interface FlowHeaderProps {
   accountMenuRef: RefObject<HTMLDivElement | null>;
   accountOpen: boolean;
   activePanel: 'apps' | 'help' | 'settings' | null;
+  connectionStatus?: ConnectionStatus;
   onLock: () => Promise<void>;
   onNavigateFolder: (folder: MailFolder) => void;
   onOpenAccount: () => void;
@@ -36,6 +38,7 @@ export function FlowHeader({
   accountMenuRef,
   accountOpen,
   activePanel,
+  connectionStatus = 'live',
   onLock,
   onNavigateFolder,
   onOpenAccount,
@@ -67,6 +70,36 @@ export function FlowHeader({
       <div aria-label="Flow Mail" className={styles.brand}>
         <FlowMark className={styles.brandMark} size="sm" />
         <span className={styles.brandText}>Flow Mail</span>
+        <div
+          aria-label={`Connection status: ${connectionStatus}`}
+          className={`${styles.liveIndicator} ${
+            connectionStatus === 'syncing'
+              ? styles.liveIndicatorSyncing
+              : connectionStatus === 'offline'
+                ? styles.liveIndicatorOffline
+                : styles.liveIndicatorLive
+          }`}
+          title={
+            connectionStatus === 'live'
+              ? 'Real-time synchronization active'
+              : connectionStatus === 'syncing'
+                ? 'Synchronizing changes with server...'
+                : 'Offline - showing cached data'
+          }
+        >
+          {connectionStatus === 'syncing' ? (
+            <Loader2 className={styles.spin} size={11} />
+          ) : (
+            <span className={styles.liveDot} />
+          )}
+          <span className={styles.liveText}>
+            {connectionStatus === 'live'
+              ? 'Live'
+              : connectionStatus === 'syncing'
+                ? 'Syncing'
+                : 'Offline'}
+          </span>
+        </div>
       </div>
 
       <HeaderSearch onQueryChange={onQueryChange} query={query} />

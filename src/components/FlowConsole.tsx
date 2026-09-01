@@ -198,6 +198,7 @@ export default function FlowConsole({ accessSession, onLock }: FlowConsoleProps)
         accountMenuRef={accountMenuRef}
         accountOpen={accountOpen}
         activePanel={activeHeaderPanel}
+        connectionStatus={mailbox.connectionStatus}
         onLock={onLock}
         onNavigateFolder={mailbox.changeFolder}
         onOpenAccount={() => setAccountOpen(true)}
