@@ -1,17 +1,16 @@
 'use client';
 
 import { useState } from 'react';
+
 import {
   Archive,
   ArrowLeft,
-  ChevronDown,
   ChevronLeft,
   ChevronRight,
   Download,
   EllipsisVertical,
   FileCode,
   FolderInput,
-  Keyboard,
   MailOpen,
   OctagonAlert,
   Trash2,
@@ -29,7 +28,6 @@ export interface ReaderToolbarProps {
   onMarkUnread: () => void;
   onMoveTo: (folder: MessageFolder) => void;
   onOffsetChange: (offset: number) => void;
-  onOpenHelp: () => void;
   onReport: () => void;
   onShowOriginal: () => void;
   readerPositionLabel: string;
@@ -45,7 +43,6 @@ export function ReaderToolbar({
   onMarkUnread,
   onMoveTo,
   onOffsetChange,
-  onOpenHelp,
   onReport,
   onShowOriginal,
   readerPositionLabel,
@@ -259,16 +256,6 @@ export function ReaderToolbar({
         type="button"
       >
         <ChevronRight size={18} />
-      </button>
-      <button
-        aria-label="Keyboard shortcuts guide"
-        className={`${styles.readerIconButton} ${styles.readerIconButtonWide}`}
-        data-tooltip="Shortcuts"
-        onClick={onOpenHelp}
-        type="button"
-      >
-        <Keyboard size={18} />
-        <ChevronDown size={13} />
       </button>
     </div>
   );

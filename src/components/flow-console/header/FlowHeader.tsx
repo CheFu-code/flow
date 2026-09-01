@@ -1,32 +1,27 @@
 'use client';
 
-import { CircleHelp, Grid3X3, Loader2, Menu, Settings } from 'lucide-react';
+import { Loader2, Menu, Settings } from 'lucide-react';
 import type { RefObject } from 'react';
 import { FlowMark } from '@/components/brand/FlowMark';
 import { AccountMenu } from '@/components/flow-console/modals/AccountMenu';
 import { HeaderPanels } from './HeaderPanels';
 import { HeaderSearch } from './HeaderSearch';
 import type { ConnectionStatus } from '@/hooks/useMailbox';
-import type { AccessSession, MailFolder } from '@/lib/flow-console/types';
+import type { AccessSession } from '@/lib/flow-console/types';
 import styles from '@/components/FlowConsole.module.css';
 
 export interface FlowHeaderProps {
   accessSession: AccessSession;
   accountMenuRef: RefObject<HTMLDivElement | null>;
   accountOpen: boolean;
-  activePanel: 'apps' | 'help' | 'settings' | null;
+  activePanel: 'settings' | null;
   connectionStatus?: ConnectionStatus;
   onLock: () => Promise<void>;
-  onNavigateFolder: (folder: MailFolder) => void;
-  onOpenAccount: () => void;
-  onOpenCompose: () => void;
   onOpenManageSenders: () => void;
   onQueryChange: (query: string) => void;
-  onResetSearch: () => void;
   onSetDensity: (density: 'comfortable' | 'compact') => void;
-  onShowSidebar: () => void;
   onToggleAccount: () => void;
-  onTogglePanel: (panel: 'apps' | 'help' | 'settings') => void;
+  onTogglePanel: (panel: 'settings') => void;
   onToggleSidebar: () => void;
   query: string;
   sidebarOpen: boolean;
@@ -40,14 +35,9 @@ export function FlowHeader({
   activePanel,
   connectionStatus = 'live',
   onLock,
-  onNavigateFolder,
-  onOpenAccount,
-  onOpenCompose,
   onOpenManageSenders,
   onQueryChange,
-  onResetSearch,
   onSetDensity,
-  onShowSidebar,
   onToggleAccount,
   onTogglePanel,
   onToggleSidebar,
@@ -69,7 +59,7 @@ export function FlowHeader({
 
       <div aria-label="Flow Mail" className={styles.brand}>
         <FlowMark className={styles.brandMark} size="sm" />
-        <span className={styles.brandText}>Flow Mail</span>
+        <span className={styles.brandText}>Flow</span>
         <div
           aria-label={`Connection status: ${connectionStatus}`}
           className={`${styles.liveIndicator} ${
@@ -106,21 +96,6 @@ export function FlowHeader({
 
       <div aria-label="Header actions" className={styles.headerActions}>
         <button
-          aria-expanded={activePanel === 'help'}
-          aria-label="Help &amp; Shortcuts"
-          className={
-            activePanel === 'help'
-              ? `${styles.iconButton} ${styles.headerActionActive}`
-              : styles.iconButton
-          }
-          data-tooltip="Help"
-          onClick={() => onTogglePanel('help')}
-          type="button"
-        >
-          <CircleHelp size={21} />
-        </button>
-
-        <button
           aria-expanded={activePanel === 'settings'}
           aria-label="Settings"
           className={
@@ -135,31 +110,11 @@ export function FlowHeader({
           <Settings size={21} />
         </button>
 
-        <button
-          aria-expanded={activePanel === 'apps'}
-          aria-label="Apps"
-          className={
-            activePanel === 'apps'
-              ? `${styles.iconButton} ${styles.headerActionActive}`
-              : styles.iconButton
-          }
-          data-tooltip="Apps"
-          onClick={() => onTogglePanel('apps')}
-          type="button"
-        >
-          <Grid3X3 size={21} />
-        </button>
-
         <HeaderPanels
           activePanel={activePanel}
-          onClosePanel={() => onTogglePanel(activePanel as any)}
-          onNavigateFolder={onNavigateFolder}
-          onOpenAccount={onOpenAccount}
-          onOpenCompose={onOpenCompose}
+          onClosePanel={() => onTogglePanel('settings')}
           onOpenManageSenders={onOpenManageSenders}
-          onResetSearch={onResetSearch}
           onSetDensity={onSetDensity}
-          onShowSidebar={onShowSidebar}
           onToggleFormatToolbar={onToggleFormatToolbar}
         />
 

@@ -29,7 +29,7 @@ import styles from './FlowConsole.module.css';
 export default function FlowConsole({ accessSession, onLock }: FlowConsoleProps) {
   const accountMenuRef = useRef<HTMLDivElement | null>(null);
   const [accountOpen, setAccountOpen] = useState(false);
-  const [activeHeaderPanel, setActiveHeaderPanel] = useState<'apps' | 'help' | 'settings' | null>(null);
+  const [activeHeaderPanel, setActiveHeaderPanel] = useState<'settings' | null>(null);
   const [config, setConfig] = useState<FlowConfig>(defaultConfig);
   const [manageSendersOpen, setManageSendersOpen] = useState(false);
   const [sidebarOpen, setSidebarOpen] = useState(true);
@@ -200,17 +200,12 @@ export default function FlowConsole({ accessSession, onLock }: FlowConsoleProps)
         activePanel={activeHeaderPanel}
         connectionStatus={mailbox.connectionStatus}
         onLock={onLock}
-        onNavigateFolder={mailbox.changeFolder}
-        onOpenAccount={() => setAccountOpen(true)}
-        onOpenCompose={() => compose.setComposeOpen(true)}
         onOpenManageSenders={() => {
           setActiveHeaderPanel(null);
           setManageSendersOpen(true);
         }}
         onQueryChange={mailbox.setQuery}
-        onResetSearch={() => mailbox.setQuery('')}
         onSetDensity={setThemeDensity}
-        onShowSidebar={() => setSidebarOpen(true)}
         onToggleAccount={() => setAccountOpen(open => !open)}
         onToggleFormatToolbar={() =>
           compose.setFormatToolbarOpen(open => !open)
@@ -255,7 +250,6 @@ export default function FlowConsole({ accessSession, onLock }: FlowConsoleProps)
               onMoveTo={threadActions.moveThreadTo}
               onOffsetChange={handleThreadOffsetChange}
               onOpenComposeToContact={compose.openComposeToContact}
-              onOpenHelp={() => setActiveHeaderPanel('help')}
               onOpenNewWindow={() => threadActions.openThreadDocument(false)}
               onPrint={() => threadActions.openThreadDocument(true)}
               onReply={threadActions.replyToMessage}

@@ -27,7 +27,6 @@ export interface ReaderViewProps {
   onMoveTo: (folder: MessageFolder) => void;
   onOffsetChange: (offset: number) => void;
   onOpenComposeToContact: (contact: ContactPreview) => void;
-  onOpenHelp: () => void;
   onOpenNewWindow: () => void;
   onPrint: () => void;
   onReply: (message: MailMessage) => void;
@@ -52,7 +51,6 @@ export function ReaderView({
   onMoveTo,
   onOffsetChange,
   onOpenComposeToContact,
-  onOpenHelp,
   onOpenNewWindow,
   onPrint,
   onReply,
@@ -75,7 +73,6 @@ export function ReaderView({
         onMarkUnread={onMarkUnread}
         onMoveTo={onMoveTo}
         onOffsetChange={onOffsetChange}
-        onOpenHelp={onOpenHelp}
         onReport={onReport}
         onShowOriginal={onShowOriginal}
         readerPositionLabel={readerPositionLabel}
