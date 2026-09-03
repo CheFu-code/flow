@@ -307,7 +307,7 @@ export function useMailbox({ onStatusChange, onDraftDetected }: UseMailboxOption
   // Real-time Server-Sent Events (SSE) stream subscription
   useEffect(() => {
     let stopped = false;
-    let controller = new AbortController();
+    const controller = new AbortController();
 
     const applyMessages = (data: BackendMessagesResponse) => {
       const incoming = (data.messages || []).map(toMailMessage);

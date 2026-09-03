@@ -98,16 +98,15 @@ export const MessageRow = memo(function MessageRow({
         className={styles.sender}
         onClick={event => event.stopPropagation()}
       >
-        <span className={styles.contactHover}>
+        <ContactHoverCard
+          contact={contact}
+          onCompose={onOpenCompose}
+          onTool={onShowStatus}
+        >
           <button className={styles.senderButton} type="button">
             {message.folder === 'sent' ? `To: ${contact.name}` : contact.name}
           </button>
-          <ContactHoverCard
-            contact={contact}
-            onCompose={onOpenCompose}
-            onTool={onShowStatus}
-          />
-        </span>
+        </ContactHoverCard>
       </div>
 
       <div className={styles.preview}>

@@ -85,17 +85,18 @@ export function ReaderMessageItem({
               className={styles.contactHover}
               onClick={event => event.stopPropagation()}
             >
-              <button className={styles.readerSenderButton} type="button">
-                <strong>{contact.name}</strong>
-                <span className={styles.readerSenderEmail}>
-                  &nbsp;&lt;{contact.email}&gt;
-                </span>
-              </button>
               <ContactHoverCard
                 contact={contact}
                 onCompose={onOpenComposeToContact}
                 onTool={onShowContactToolStatus}
-              />
+              >
+                <button className={styles.readerSenderButton} type="button">
+                  <strong>{contact.name}</strong>
+                  <span className={styles.readerSenderEmail}>
+                    &nbsp;&lt;{contact.email}&gt;
+                  </span>
+                </button>
+              </ContactHoverCard>
             </div>
 
             <div className={styles.readerMessageActions}>
