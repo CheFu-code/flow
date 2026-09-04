@@ -10,6 +10,7 @@ export type FlowSidebarProps = {
   activeFolder: MailFolder;
   canWrite: boolean;
   folderCounts: Record<MailFolder, number>;
+  unreadCounts?: Record<MailFolder, number>;
   onCompose: () => void;
   onFolderChange: (folder: MailFolder) => void;
   onCloseMobile?: () => void;
@@ -19,6 +20,7 @@ export function FlowSidebar({
   activeFolder,
   canWrite,
   folderCounts,
+  unreadCounts,
   onCompose,
   onFolderChange,
   onCloseMobile,
@@ -43,7 +45,14 @@ export function FlowSidebar({
         {folderItems.map(item => {
           const Icon = item.icon;
           const isActive = activeFolder === item.folder;
-          const count = folderCounts[item.folder] || 0;
+
+          // For inbox and mail folders, show unread count. For drafts, show total drafts count.
+          const count =
+            item.folder === 'drafts'
+              ? (folderCounts.drafts || unreadCounts?.drafts || 0)
+              : (unreadCounts?.[item.folder] ?? (item.folder === 'inbox' ? folderCounts.inbox : 0));
+
+          const isUnreadBadge = item.folder !== 'drafts' && count > 0;
 
           return (
             <button
@@ -64,9 +73,11 @@ export function FlowSidebar({
               <span className={styles.folderTitle}>{item.title}</span>
               {count > 0 ? (
                 <Badge
-                  variant={isActive ? 'brand' : 'secondary'}
-                  className="h-5 text-[11px] font-semibold px-1.5 min-w-[20px] justify-center ml-auto"
-                  aria-label={`${count} messages in ${item.title}`}
+                  variant={isUnreadBadge ? 'brand' : isActive ? 'brand' : 'secondary'}
+                  className={`h-5 text-[11px] px-1.5 min-w-[20px] justify-center ml-auto transition-all ${
+                    isUnreadBadge ? 'font-bold shadow-xs' : 'font-medium'
+                  }`}
+                  aria-label={`${count} ${isUnreadBadge ? 'unread' : ''} messages in ${item.title}`}
                 >
                   {count}
                 </Badge>

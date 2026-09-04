@@ -1,7 +1,6 @@
 'use client';
 
-import { AtSign, Check, Palette, Settings, Sparkles } from 'lucide-react';
-import { Button } from '@/components/ui/button';
+import { AtSign, Palette, Settings, Sparkles } from 'lucide-react';
 
 export interface HeaderPanelsProps {
   activePanel: 'settings' | null;

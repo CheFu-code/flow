@@ -19,7 +19,6 @@ import type {
   BackendMessagesResponse,
   MailFolder,
   MailMessage,
-  MailThread,
   StatusMessage,
 } from '@/lib/flow-console/types';
 
@@ -61,7 +60,9 @@ export interface UseMailboxOptions {
 
 export function useMailbox({ onStatusChange, onDraftDetected }: UseMailboxOptions = {}) {
   const [activeFolder, setActiveFolder] = useState<MailFolder>('inbox');
-  const [connectionStatus, setConnectionStatus] = useState<ConnectionStatus>('syncing');
+  const [connectionStatus, setConnectionStatus] = useState<ConnectionStatus>(
+    typeof navigator !== 'undefined' && !navigator.onLine ? 'offline' : 'syncing',
+  );
   const [folderCounts, setFolderCounts] = useState<Record<MailFolder, number>>(emptyFolderCounts);
   const [isLoadingMessages, setIsLoadingMessages] = useState(true);
   const [isLoadingMore, setIsLoadingMore] = useState(false);
@@ -70,6 +71,12 @@ export function useMailbox({ onStatusChange, onDraftDetected }: UseMailboxOption
   const [nextCursor, setNextCursor] = useState<string | null>(null);
   const [query, setQuery] = useState('');
   const [selectedThreadId, setSelectedThreadId] = useState<string | null>(null);
+  const [reconnectKey, setReconnectKey] = useState(0);
+
+  // Pagination states
+  const [currentPage, setCurrentPage] = useState(1);
+  const [pageSize, setPageSize] = useState(50);
+  const [paginationMode, setPaginationMode] = useState<'virtual' | 'paginated'>('virtual');
 
   const detailLoadedRef = useRef(new Set<string>());
   const debouncedQuery = useDebounce(query, 140);
@@ -80,6 +87,38 @@ export function useMailbox({ onStatusChange, onDraftDetected }: UseMailboxOption
     () => groupMessagesIntoThreads(messages),
     [messages],
   );
+
+  // Calculate unread counts per folder
+  const unreadCounts = useMemo<Record<MailFolder, number>>(() => {
+    const counts: Record<MailFolder, number> = {
+      allmail: 0,
+      bin: 0,
+      drafts: 0,
+      inbox: 0,
+      sent: 0,
+      starred: 0,
+    };
+
+    allThreads.forEach(thread => {
+      if (thread.unread) {
+        const folder = thread.latest.folder;
+        if (folder in counts) {
+          counts[folder as MailFolder]++;
+        }
+        if (folder !== 'bin' && folder !== 'trash') {
+          counts.allmail++;
+        }
+        if (thread.starred) {
+          counts.starred++;
+        }
+      }
+      if (thread.latest.folder === 'drafts') {
+        counts.drafts++;
+      }
+    });
+
+    return counts;
+  }, [allThreads]);
 
   // Filter threads by search query
   const visibleThreads = useMemo(() => {
@@ -102,10 +141,21 @@ export function useMailbox({ onStatusChange, onDraftDetected }: UseMailboxOption
     });
   }, [allThreads, debouncedQuery]);
 
+  // Pagination metrics
+  const totalPages = Math.max(1, Math.ceil(visibleThreads.length / pageSize));
+  const pageStart = visibleThreads.length === 0 ? 0 : (currentPage - 1) * pageSize + 1;
+  const pageEnd = Math.min(visibleThreads.length, currentPage * pageSize);
+
   // Virtual windowing calculations
   const virtualStart = Math.max(0, Math.floor(listScrollTop / 44) - 5);
-  const virtualEnd = Math.min(visibleThreads.length, virtualStart + 30);
-  const renderedThreads = visibleThreads.slice(virtualStart, virtualEnd);
+  const virtualEnd = Math.min(visibleThreads.length, virtualStart + 35);
+  const renderedThreads = useMemo(() => {
+    if (paginationMode === 'paginated') {
+      const start = (currentPage - 1) * pageSize;
+      return visibleThreads.slice(start, start + pageSize);
+    }
+    return visibleThreads.slice(virtualStart, virtualEnd);
+  }, [currentPage, pageSize, paginationMode, visibleThreads, virtualEnd, virtualStart]);
 
   // Currently opened thread
   const selectedThread = useMemo(
@@ -121,6 +171,8 @@ export function useMailbox({ onStatusChange, onDraftDetected }: UseMailboxOption
     setIsLoadingMessages(cachedMessages.length === 0);
     setActiveFolder(folder);
     setSelectedThreadId(null);
+    setCurrentPage(1);
+    setListScrollTop(0);
     onStatusChange?.(null);
   }, [onStatusChange]);
 
@@ -289,10 +341,13 @@ export function useMailbox({ onStatusChange, onDraftDetected }: UseMailboxOption
 
     const handleOnline = () => {
       setConnectionStatus('syncing');
+      setReconnectKey(k => k + 1);
+      onStatusChange?.({ kind: 'success', text: 'Connection restored. Mailbox synchronized.' });
     };
 
     const handleOffline = () => {
       setConnectionStatus('offline');
+      onStatusChange?.({ kind: 'info', text: 'You are currently offline. Showing cached messages.' });
     };
 
     window.addEventListener('online', handleOnline);
@@ -302,7 +357,7 @@ export function useMailbox({ onStatusChange, onDraftDetected }: UseMailboxOption
       window.removeEventListener('online', handleOnline);
       window.removeEventListener('offline', handleOffline);
     };
-  }, []);
+  }, [onStatusChange]);
 
   // Real-time Server-Sent Events (SSE) stream subscription
   useEffect(() => {
@@ -385,6 +440,7 @@ export function useMailbox({ onStatusChange, onDraftDetected }: UseMailboxOption
           // Keep fallback message
         }
         setConnectionStatus('syncing');
+        onStatusChange?.({ kind: 'info', text: errorMessage });
         void loadMailboxFallback();
         return;
       }
@@ -453,32 +509,69 @@ export function useMailbox({ onStatusChange, onDraftDetected }: UseMailboxOption
         clearTimeout(reconnectTimeoutRef.current);
       }
     };
-  }, [activeFolder, onStatusChange]);
+  }, [activeFolder, onStatusChange, reconnectKey]);
+
+  // Page navigation helpers
+  const goToNextPage = useCallback(async () => {
+    if (currentPage < totalPages) {
+      setCurrentPage(p => p + 1);
+      setListScrollTop(0);
+    } else if (nextCursor && !isLoadingMore) {
+      await loadNextPage();
+      setCurrentPage(p => p + 1);
+      setListScrollTop(0);
+    }
+  }, [currentPage, isLoadingMore, loadNextPage, nextCursor, totalPages]);
+
+  const goToPrevPage = useCallback(() => {
+    if (currentPage > 1) {
+      setCurrentPage(p => p - 1);
+      setListScrollTop(0);
+    }
+  }, [currentPage]);
+
+  const reconnect = useCallback(() => {
+    setConnectionStatus('syncing');
+    setReconnectKey(k => k + 1);
+  }, []);
 
   return {
     activeFolder,
     allThreads,
     changeFolder,
     connectionStatus,
+    currentPage,
     debouncedQuery,
     folderCounts,
+    goToNextPage,
+    goToPrevPage,
     isLoadingMessages,
     isLoadingMore,
     listScrollTop,
     loadNextPage,
     messages,
     nextCursor,
+    pageEnd,
+    pageSize,
+    pageStart,
+    paginationMode,
     query,
+    reconnect,
     renderedThreads,
     selectedThread,
     selectedThreadId,
     setActiveFolder,
+    setCurrentPage,
     setFolderCounts,
     setIsLoadingMessages,
     setListScrollTop,
     setMessages,
+    setPageSize,
+    setPaginationMode,
     setQuery,
     setSelectedThreadId,
+    totalPages,
+    unreadCounts,
     virtualEnd,
     virtualStart,
     visibleThreads,

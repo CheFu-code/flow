@@ -5,11 +5,15 @@ import { ComposeModal } from '@/components/flow-console/compose/ComposeModal';
 import { FlowHeader } from '@/components/flow-console/header/FlowHeader';
 import { MailboxList } from '@/components/flow-console/mailbox/MailboxList';
 import { DeleteConfirmDialog } from '@/components/flow-console/modals/DeleteConfirmDialog';
+import { KeyboardShortcutsModal } from '@/components/flow-console/modals/KeyboardShortcutsModal';
 import { ManageSendersModal } from '@/components/flow-console/modals/ManageSendersModal';
 import { ReaderView } from '@/components/flow-console/reader/ReaderView';
+import { OfflineBanner } from '@/components/flow-console/shared/OfflineBanner';
 import { StatusToast } from '@/components/flow-console/shared/StatusToast';
+import { UndoSendToast } from '@/components/flow-console/shared/UndoSendToast';
 import { FlowSidebar } from '@/components/flow-console/sidebar/FlowSidebar';
 import { useCompose } from '@/hooks/useCompose';
+import { useKeyboardShortcuts } from '@/hooks/useKeyboardShortcuts';
 import { useMailbox } from '@/hooks/useMailbox';
 import { useThreadActions } from '@/hooks/useThreadActions';
 import { apiUrl, flowHeaders } from '@/lib/api';
@@ -32,13 +36,15 @@ export default function FlowConsole({ accessSession, onLock }: FlowConsoleProps)
   const [activeHeaderPanel, setActiveHeaderPanel] = useState<'settings' | null>(null);
   const [config, setConfig] = useState<FlowConfig>(defaultConfig);
   const [manageSendersOpen, setManageSendersOpen] = useState(false);
+  const [shortcutsModalOpen, setShortcutsModalOpen] = useState(false);
+  const [focusedThreadId, setFocusedThreadId] = useState<string | null>(null);
   const [sidebarOpen, setSidebarOpen] = useState(true);
   const [status, setStatus] = useState<StatusMessage | null>(null);
   const [themeDensity, setThemeDensity] = useState<'comfortable' | 'compact'>('comfortable');
 
   const canWrite = accessSession.permission !== 'read';
 
-  // 1. Mailbox Hook
+  // 1. Mailbox Hook (with unread counts, pagination, and offline/reconnect)
   const mailbox = useMailbox({
     onDraftDetected: (draft: MailMessage) => {
       compose.setDraftId(draft.id);
@@ -59,7 +65,7 @@ export default function FlowConsole({ accessSession, onLock }: FlowConsoleProps)
     onStatusChange: setStatus,
   });
 
-  // 2. Compose Hook
+  // 2. Compose Hook (with draft auto-save interval and undo send)
   const compose = useCompose({
     accessSession,
     config,
@@ -85,6 +91,16 @@ export default function FlowConsole({ accessSession, onLock }: FlowConsoleProps)
     setSelectedThreadId: mailbox.setSelectedThreadId,
     visibleThreads: mailbox.visibleThreads,
   });
+
+  // Dynamic Browser Tab Document Title Unread Count Badge
+  useEffect(() => {
+    const unread = mailbox.unreadCounts.inbox;
+    if (unread > 0) {
+      document.title = `(${unread}) Flow Mail`;
+    } else {
+      document.title = 'Flow Mail';
+    }
+  }, [mailbox.unreadCounts.inbox]);
 
   // Load backend configuration
   useEffect(() => {
@@ -187,6 +203,84 @@ export default function FlowConsole({ accessSession, onLock }: FlowConsoleProps)
     [mailbox.visibleThreads, selectedThreadIndex, threadActions],
   );
 
+  // Keyboard Shortcuts Hook
+  useKeyboardShortcuts({
+    canWrite,
+    focusedThreadId,
+    isComposeOpen: compose.composeOpen,
+    isShortcutsModalOpen: shortcutsModalOpen,
+    onArchive: () => {
+      if (mailbox.selectedThread) {
+        threadActions.archiveThread();
+      } else if (threadActions.selectedIds.length > 0) {
+        threadActions.archiveThread();
+      } else if (focusedThreadId) {
+        threadActions.openThread(focusedThreadId);
+        window.setTimeout(() => threadActions.archiveThread(), 50);
+      }
+    },
+    onCloseCompose: () => compose.saveDraftAndClose(),
+    onCloseReader: () => mailbox.setSelectedThreadId(null),
+    onDelete: () => {
+      if (mailbox.selectedThread) {
+        threadActions.requestDeleteOpenThread();
+      } else if (threadActions.selectedIds.length > 0) {
+        threadActions.requestDeleteSelected();
+      }
+    },
+    onDeselectAll: () => threadActions.setSelectedIds([]),
+    onFocusSearch: () => {
+      const input = document.querySelector('input[placeholder*="Search"]') as HTMLInputElement | null;
+      input?.focus();
+    },
+    onMarkRead: () => {
+      if (mailbox.selectedThread) {
+        // Already marked read on open
+      }
+    },
+    onMarkUnread: () => {
+      if (mailbox.selectedThread) {
+        threadActions.markThreadUnread();
+      }
+    },
+    onNextThread: () => handleThreadOffsetChange(1),
+    onOpenCompose: () => compose.setComposeOpen(true),
+    onOpenThread: (threadId: string) => threadActions.openThread(threadId),
+    onPrevThread: () => handleThreadOffsetChange(-1),
+    onReply: () => {
+      if (mailbox.selectedThread) {
+        threadActions.replyToMessage(mailbox.selectedThread.latest);
+      }
+    },
+    onReplyAll: () => {
+      if (mailbox.selectedThread) {
+        threadActions.replyToMessage(mailbox.selectedThread.latest);
+      }
+    },
+    onSaveDraft: () => void compose.saveDraftNow(),
+    onSelectAll: () => {
+      threadActions.toggleAllSelected({
+        target: { checked: true },
+      } as unknown as React.ChangeEvent<HTMLInputElement>);
+    },
+    onSelectFolder: (folder) => mailbox.changeFolder(folder),
+    onSendCompose: () => compose.composeFormRef.current?.requestSubmit(),
+    onToggleSelect: (threadId: string) => threadActions.toggleSelected(threadId),
+    onToggleShortcutsModal: () => setShortcutsModalOpen(open => !open),
+    onToggleStar: (threadId: string) => {
+      const thread = mailbox.visibleThreads.find(t => t.id === threadId);
+      if (thread) {
+        threadActions.toggleStarred(
+          { stopPropagation: () => {} } as unknown as React.MouseEvent,
+          thread.latest.id,
+        );
+      }
+    },
+    selectedThreadId: mailbox.selectedThreadId,
+    setFocusedThreadId,
+    threads: mailbox.visibleThreads,
+  });
+
   return (
     <main
       className={`${styles.mailShell} ${
@@ -204,7 +298,9 @@ export default function FlowConsole({ accessSession, onLock }: FlowConsoleProps)
           setActiveHeaderPanel(null);
           setManageSendersOpen(true);
         }}
+        onOpenShortcutsModal={() => setShortcutsModalOpen(true)}
         onQueryChange={mailbox.setQuery}
+        onReconnect={mailbox.reconnect}
         onSetDensity={setThemeDensity}
         onToggleAccount={() => setAccountOpen(open => !open)}
         onToggleFormatToolbar={() =>
@@ -216,6 +312,12 @@ export default function FlowConsole({ accessSession, onLock }: FlowConsoleProps)
         onToggleSidebar={() => setSidebarOpen(open => !open)}
         query={mailbox.query}
         sidebarOpen={sidebarOpen}
+      />
+
+      {/* Offline Alert Banner */}
+      <OfflineBanner
+        isOffline={mailbox.connectionStatus === 'offline'}
+        onReconnect={mailbox.reconnect}
       />
 
       <section
@@ -232,6 +334,7 @@ export default function FlowConsole({ accessSession, onLock }: FlowConsoleProps)
             folderCounts={mailbox.folderCounts}
             onCompose={() => compose.setComposeOpen(true)}
             onFolderChange={mailbox.changeFolder}
+            unreadCounts={mailbox.unreadCounts}
           />
         ) : null}
 
@@ -271,14 +374,18 @@ export default function FlowConsole({ accessSession, onLock }: FlowConsoleProps)
               activeFolder={mailbox.activeFolder}
               allThreadsCount={mailbox.allThreads.length}
               allVisibleSelected={threadActions.allVisibleSelected}
+              currentPage={mailbox.currentPage}
               debouncedQuery={mailbox.debouncedQuery}
+              focusedThreadId={focusedThreadId}
               hasSelection={threadActions.selectedIds.length > 0}
               isLoadingMessages={mailbox.isLoadingMessages}
               isLoadingMore={mailbox.isLoadingMore}
               onDeleteSelected={threadActions.requestDeleteSelected}
               onKeyDown={handleMessageKeyDown}
               onLoadMore={() => void mailbox.loadNextPage()}
+              onNextPage={mailbox.goToNextPage}
               onOpenCompose={compose.openComposeToContact}
+              onPrevPage={mailbox.goToPrevPage}
               onScroll={mailbox.setListScrollTop}
               onSelect={threadActions.openThread}
               onSelectAll={threadActions.toggleAllSelected}
@@ -290,10 +397,14 @@ export default function FlowConsole({ accessSession, onLock }: FlowConsoleProps)
               }}
               onToggleSelect={threadActions.toggleSelected}
               onToggleStarred={threadActions.toggleStarred}
+              pageEnd={mailbox.pageEnd}
+              pageStart={mailbox.pageStart}
+              paginationMode={mailbox.paginationMode}
               query={mailbox.query}
               renderedThreads={mailbox.renderedThreads}
               selectedFolderTitle={getFolderLabel(mailbox.activeFolder)}
               selectedIdSet={threadActions.selectedIdSet}
+              totalPages={mailbox.totalPages}
               totalThreads={mailbox.visibleThreads.length}
               virtualEnd={mailbox.virtualEnd}
               virtualStart={mailbox.virtualStart}
@@ -320,6 +431,7 @@ export default function FlowConsole({ accessSession, onLock }: FlowConsoleProps)
         composeFormRef={compose.composeFormRef}
         composeFrom={compose.composeFrom}
         composeOpen={compose.composeOpen}
+        draftSaveState={compose.draftSaveState}
         emojiPickerOpen={compose.emojiPickerOpen}
         formatToolbarOpen={compose.formatToolbarOpen}
         imageInputRef={compose.imageInputRef}
@@ -382,6 +494,20 @@ export default function FlowConsole({ accessSession, onLock }: FlowConsoleProps)
           compose.setComposeFields(prev => ({ ...prev, from: email }));
         }}
         senders={config.senders || []}
+      />
+
+      {/* Undo Send Toast with Animated Countdown */}
+      <UndoSendToast
+        isOpen={Boolean(compose.undoSendState)}
+        onSendNow={compose.sendImmediately}
+        onUndo={compose.undoSend}
+        recipientCount={compose.undoSendState?.recipients.length || 1}
+      />
+
+      {/* Keyboard Shortcuts Cheat-sheet Modal */}
+      <KeyboardShortcutsModal
+        isOpen={shortcutsModalOpen}
+        onClose={() => setShortcutsModalOpen(false)}
       />
 
       <StatusToast onDismiss={() => setStatus(null)} status={status} />

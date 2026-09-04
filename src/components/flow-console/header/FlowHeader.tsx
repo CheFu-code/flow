@@ -1,6 +1,6 @@
 'use client';
 
-import { Loader2, Menu, Settings } from 'lucide-react';
+import { Keyboard, Loader2, Menu, Settings } from 'lucide-react';
 import type { RefObject } from 'react';
 import { FlowMark } from '@/components/brand/FlowMark';
 import { Badge } from '@/components/ui/badge';
@@ -19,7 +19,9 @@ export interface FlowHeaderProps {
   connectionStatus?: ConnectionStatus;
   onLock: () => Promise<void>;
   onOpenManageSenders: () => void;
+  onOpenShortcutsModal?: () => void;
   onQueryChange: (query: string) => void;
+  onReconnect?: () => void;
   onSetDensity: (density: 'comfortable' | 'compact') => void;
   onToggleAccount: () => void;
   onTogglePanel: (panel: 'settings') => void;
@@ -37,7 +39,9 @@ export function FlowHeader({
   connectionStatus = 'live',
   onLock,
   onOpenManageSenders,
+  onOpenShortcutsModal,
   onQueryChange,
+  onReconnect,
   onSetDensity,
   onToggleAccount,
   onTogglePanel,
@@ -64,13 +68,16 @@ export function FlowHeader({
 
         <Badge
           aria-label={`Connection status: ${connectionStatus}`}
-          className="gap-1.5 px-2 py-0.5 text-[11px] font-medium transition-all"
+          className={`gap-1.5 px-2 py-0.5 text-[11px] font-medium transition-all ${
+            connectionStatus === 'offline' ? 'cursor-pointer hover:opacity-80' : ''
+          }`}
+          onClick={connectionStatus === 'offline' ? onReconnect : undefined}
           title={
             connectionStatus === 'live'
               ? 'Real-time synchronization active'
               : connectionStatus === 'syncing'
                 ? 'Synchronizing changes with server...'
-                : 'Offline - showing cached data'
+                : 'Offline - click to reconnect'
           }
           variant={
             connectionStatus === 'live'
@@ -96,7 +103,7 @@ export function FlowHeader({
               ? 'Live'
               : connectionStatus === 'syncing'
                 ? 'Syncing'
-                : 'Offline'}
+                : 'Offline (retry)'}
           </span>
         </Badge>
       </div>
@@ -104,6 +111,16 @@ export function FlowHeader({
       <HeaderSearch onQueryChange={onQueryChange} query={query} />
 
       <div aria-label="Header actions" className={styles.headerActions}>
+        <button
+          aria-label="Keyboard shortcuts (?)"
+          className={styles.iconButton}
+          data-tooltip="Keyboard shortcuts (?)"
+          onClick={onOpenShortcutsModal}
+          type="button"
+        >
+          <Keyboard size={20} />
+        </button>
+
         <button
           aria-expanded={activePanel === 'settings'}
           aria-label="Settings"

@@ -3,6 +3,7 @@
 import {
   AtSign,
   CaseSensitive,
+  Check,
   ChevronDown,
   EllipsisVertical,
   Image as ImageIcon,
@@ -20,9 +21,11 @@ import {
   Type,
 } from 'lucide-react';
 import { composeEmojis } from '@/lib/flow-console/constants';
+import type { DraftSaveState } from '@/lib/flow-console/types';
 import styles from '@/components/FlowConsole.module.css';
 
 export interface ComposeFooterProps {
+  draftSaveState?: DraftSaveState;
   emojiPickerOpen: boolean;
   formatToolbarOpen: boolean;
   isSending: boolean;
@@ -48,6 +51,7 @@ export interface ComposeFooterProps {
 }
 
 export function ComposeFooter({
+  draftSaveState,
   emojiPickerOpen,
   formatToolbarOpen,
   isSending,
@@ -160,10 +164,10 @@ export function ComposeFooter({
           <Link2 size={19} />
         </button>
 
-        <div className={styles.footerMenuWrap}>
+        <div className="relative">
           <button
             aria-expanded={emojiPickerOpen}
-            aria-label="Insert emoji symbol"
+            aria-label="Insert emoji"
             className={styles.footerToolButton}
             data-tooltip="Insert emoji"
             disabled={isSending}
@@ -175,12 +179,11 @@ export function ComposeFooter({
           {emojiPickerOpen ? (
             <div
               aria-label="Emoji picker"
-              className={styles.emojiMenu}
-              role="menu"
+              className={styles.emojiPicker}
+              role="dialog"
             >
               {composeEmojis.map(emoji => (
                 <button
-                  aria-label={`Insert ${emoji}`}
                   key={emoji}
                   onClick={() => onInsertEmoji(emoji)}
                   type="button"
@@ -204,9 +207,9 @@ export function ComposeFooter({
         </button>
 
         <button
-          aria-label="Insert photo image"
+          aria-label="Insert image"
           className={styles.footerToolButton}
-          data-tooltip="Insert photo"
+          data-tooltip="Insert image"
           disabled={isSending}
           onClick={onTriggerImage}
           type="button"
@@ -215,14 +218,14 @@ export function ComposeFooter({
         </button>
 
         <button
-          aria-label="Confidential mode notice"
+          aria-label="Insert confidential notice"
           className={styles.footerToolButton}
-          data-tooltip="Confidential mode"
+          data-tooltip="Confidential notice"
           disabled={isSending}
           onClick={onInsertConfidential}
           type="button"
         >
-          <LockKeyhole size={18} />
+          <LockKeyhole size={19} />
         </button>
 
         <button
@@ -233,10 +236,10 @@ export function ComposeFooter({
           onClick={onInsertSignature}
           type="button"
         >
-          <PenLine size={18} />
+          <PenLine size={19} />
         </button>
 
-        <div className={styles.footerMenuWrap}>
+        <div className="relative">
           <button
             aria-expanded={moreToolsOpen}
             aria-label="More composer options"
@@ -280,6 +283,24 @@ export function ComposeFooter({
           ) : null}
         </div>
       </div>
+
+      {draftSaveState && draftSaveState.status !== 'idle' ? (
+        <div className={styles.draftSaveStatus}>
+          {draftSaveState.status === 'saving' ? (
+            <>
+              <Loader2 className={styles.spin} size={12} />
+              <span>Saving draft...</span>
+            </>
+          ) : draftSaveState.status === 'saved' && draftSaveState.lastSavedAt ? (
+            <>
+              <Check size={13} className="text-emerald-500 shrink-0" />
+              <span>Saved at {draftSaveState.lastSavedAt}</span>
+            </>
+          ) : draftSaveState.status === 'error' ? (
+            <span className="text-amber-500 text-[11px]">Draft unsaved</span>
+          ) : null}
+        </div>
+      ) : null}
 
       <button
         aria-label="Discard draft"

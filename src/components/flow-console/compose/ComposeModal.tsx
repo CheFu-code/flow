@@ -16,6 +16,7 @@ import { ComposeSenderSelect } from './ComposeSenderSelect';
 import type {
   ComposeAttachment,
   ComposeFields,
+  DraftSaveState,
   FlowSender,
 } from '@/lib/flow-console/types';
 import styles from '@/components/FlowConsole.module.css';
@@ -29,6 +30,7 @@ export interface ComposeModalProps {
   composeFormRef: RefObject<HTMLFormElement | null>;
   composeFrom: string;
   composeOpen: boolean;
+  draftSaveState?: DraftSaveState;
   emojiPickerOpen: boolean;
   formatToolbarOpen: boolean;
   imageInputRef: RefObject<HTMLInputElement | null>;
@@ -85,6 +87,7 @@ export function ComposeModal({
   composeFormRef,
   composeFrom,
   composeOpen,
+  draftSaveState,
   emojiPickerOpen,
   formatToolbarOpen,
   imageInputRef,
@@ -208,6 +211,7 @@ export function ComposeModal({
         ) : null}
 
         <ComposeFooter
+          draftSaveState={draftSaveState}
           emojiPickerOpen={emojiPickerOpen}
           formatToolbarOpen={formatToolbarOpen}
           isSending={isSending}

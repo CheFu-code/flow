@@ -16,6 +16,7 @@ import styles from '@/components/FlowConsole.module.css';
 export interface MessageRowProps {
   thread: MailThread;
   isSelected: boolean;
+  isKeyboardFocused?: boolean;
   onSelect: (threadId: string) => void;
   onToggleSelect: (threadId: string) => void;
   onToggleStarred: (event: MouseEvent, messageId: string) => void;
@@ -41,6 +42,7 @@ function getTrackingVariant(kind: string): 'success' | 'info' | 'secondary' | 'd
 export const MessageRow = memo(function MessageRow({
   thread,
   isSelected,
+  isKeyboardFocused = false,
   onSelect,
   onToggleSelect,
   onToggleStarred,
@@ -55,10 +57,12 @@ export const MessageRow = memo(function MessageRow({
   return (
     <div
       aria-label={`Conversation: ${thread.subject} from ${contact.name}`}
-      aria-selected={isSelected}
+      aria-pressed={isSelected}
       className={`${styles.messageRow} ${
         thread.unread ? styles.messageUnread : ''
-      } ${isSelected ? styles.messageSelected : ''}`}
+      } ${isSelected ? styles.messageSelected : ''} ${
+        isKeyboardFocused ? styles.rowFocused : ''
+      }`}
       onClick={() => onSelect(thread.id)}
       onKeyDown={event => onKeyDown(event, thread.id)}
       role="button"
@@ -98,6 +102,7 @@ export const MessageRow = memo(function MessageRow({
         className={styles.sender}
         onClick={event => event.stopPropagation()}
       >
+        {thread.unread ? <span className={styles.unreadDot} title="Unread" /> : null}
         <ContactHoverCard
           contact={contact}
           onCompose={onOpenCompose}

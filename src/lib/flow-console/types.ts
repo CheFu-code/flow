@@ -168,3 +168,24 @@ export type FlowConsoleProps = {
   accessSession: AccessSession;
   onLock: () => Promise<void>;
 };
+
+export type FolderUnreadCounts = Record<MailFolder, number>;
+
+export type UndoSendState = {
+  id: string;
+  attachments: ComposeAttachment[];
+  body: string;
+  draftId: string | null;
+  from: string;
+  recipientEmails: string[];
+  recipients: string[];
+  secondsRemaining: number;
+  subject: string;
+  timeoutId: ReturnType<typeof setTimeout>;
+};
+
+export type DraftSaveState = {
+  status: 'idle' | 'saving' | 'saved' | 'error';
+  lastSavedAt: string | null;
+  error?: string;
+};

@@ -2547,3 +2547,359 @@
     grid-template-columns: 1fr;
   }
 }
+
+/* ==========================================================================
+   New Core Features: Shortcuts, Unread, Pagination, Undo, Offline, Draft Auto-Save
+   ========================================================================== */
+
+/* ── Unread Dot & Row Focus ────────────────────────────────────────────── */
+.unreadDot {
+  display: inline-block;
+  width: 7px;
+  height: 7px;
+  min-width: 7px;
+  border-radius: 50%;
+  background: var(--fc-teal-600);
+  box-shadow: 0 0 6px var(--fc-teal-500);
+  margin-right: 6px;
+  flex-shrink: 0;
+}
+
+.rowFocused {
+  outline: 2px solid var(--fc-teal-600) !important;
+  outline-offset: -2px;
+  background: var(--fc-bg-hover) !important;
+  z-index: 1;
+}
+
+/* ── Undo Send Toast ───────────────────────────────────────────────────── */
+.undoToast {
+  position: fixed;
+  bottom: 24px;
+  left: 28px;
+  z-index: 1050;
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 10px 16px;
+  background: #090d16;
+  color: #f8fafc;
+  border-radius: 10px;
+  box-shadow: 0 12px 30px -4px rgba(0, 0, 0, 0.4), 0 4px 10px -2px rgba(0, 0, 0, 0.2);
+  border: 1px solid rgba(255, 255, 255, 0.12);
+  font-size: 13px;
+  overflow: hidden;
+  animation: slideUpFade 0.25s cubic-bezier(0.16, 1, 0.3, 1);
+}
+
+@keyframes slideUpFade {
+  from {
+    opacity: 0;
+    transform: translateY(12px) scale(0.97);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0) scale(1);
+  }
+}
+
+.undoProgressTrack {
+  position: absolute;
+  bottom: 0;
+  left: 0;
+  right: 0;
+  height: 3px;
+  background: rgba(255, 255, 255, 0.1);
+}
+
+.undoProgressBar {
+  height: 100%;
+  background: linear-gradient(90deg, #14b8a6, #2dd4bf);
+  transition: width 0.1s linear;
+}
+
+.undoButton {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  padding: 4px 12px;
+  font-size: 12px;
+  font-weight: 600;
+  border-radius: 6px;
+  background: #f59e0b;
+  color: #0f172a;
+  border: none;
+  cursor: pointer;
+  transition: transform 0.15s ease, filter 0.15s ease;
+}
+
+.undoButton:hover {
+  filter: brightness(1.1);
+  transform: scale(1.02);
+}
+
+.undoSendNowButton {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  padding: 4px 10px;
+  font-size: 12px;
+  font-weight: 500;
+  border-radius: 6px;
+  background: rgba(255, 255, 255, 0.12);
+  color: #f1f5f9;
+  border: none;
+  cursor: pointer;
+  transition: background-color 0.15s ease;
+}
+
+.undoSendNowButton:hover {
+  background: rgba(255, 255, 255, 0.2);
+}
+
+/* ── Offline Banner ────────────────────────────────────────────────────── */
+.offlineBanner {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 8px 18px;
+  background: #fef3c7;
+  color: #92400e;
+  border-bottom: 1px solid #fde68a;
+  font-size: 13px;
+  font-weight: 500;
+  animation: fadeInDown 0.2s ease-out;
+  flex-shrink: 0;
+}
+
+:global(.dark) .offlineBanner {
+  background: #451a03;
+  color: #fef08a;
+  border-bottom-color: #78350f;
+}
+
+@keyframes fadeInDown {
+  from {
+    opacity: 0;
+    transform: translateY(-8px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+.offlineBannerContent {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.offlineRetryButton {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  padding: 3px 10px;
+  font-size: 12px;
+  font-weight: 600;
+  border-radius: 5px;
+  background: #d97706;
+  color: #ffffff;
+  border: none;
+  cursor: pointer;
+  transition: background-color 0.15s ease;
+}
+
+.offlineRetryButton:hover {
+  background: #b45309;
+}
+
+/* ── Draft Save Status Indicator ───────────────────────────────────────── */
+.draftSaveStatus {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 11.5px;
+  color: var(--fc-text-muted);
+  margin-left: auto;
+  margin-right: 8px;
+  user-select: none;
+}
+
+/* ── Pagination Controls in Mailbox Toolbar ────────────────────────────── */
+.paginationControls {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 12.5px;
+  color: var(--fc-text-secondary);
+}
+
+.paginationRange {
+  font-variant-numeric: tabular-nums;
+  font-weight: 500;
+  color: var(--fc-text-primary);
+}
+
+.paginationButton {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 28px;
+  height: 28px;
+  border-radius: 6px;
+  border: 1px solid var(--fc-border);
+  background: var(--fc-bg-surface);
+  color: var(--fc-text-primary);
+  cursor: pointer;
+  transition: background-color 0.15s ease, border-color 0.15s ease;
+}
+
+.paginationButton:hover:not(:disabled) {
+  background: var(--fc-bg-hover);
+  border-color: var(--fc-border-focus);
+}
+
+.paginationButton:disabled {
+  opacity: 0.4;
+  cursor: not-allowed;
+}
+
+.pageSizeSelect {
+  padding: 3px 6px;
+  font-size: 12px;
+  border-radius: 5px;
+  border: 1px solid var(--fc-border);
+  background: var(--fc-bg-surface);
+  color: var(--fc-text-primary);
+  cursor: pointer;
+}
+
+/* ── Keyboard Shortcuts Modal ──────────────────────────────────────────── */
+.shortcutsModalOverlay {
+  position: fixed;
+  inset: 0;
+  background: rgba(0, 0, 0, 0.55);
+  backdrop-filter: blur(4px);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 1100;
+  padding: 16px;
+  animation: fadeIn 0.15s ease-out;
+}
+
+.shortcutsModalDialog {
+  background: var(--fc-bg-surface-elevated);
+  border: 1px solid var(--fc-border);
+  border-radius: 14px;
+  box-shadow: var(--fc-shadow-compose);
+  width: 100%;
+  max-width: 640px;
+  max-height: 85vh;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+  color: var(--fc-text-primary);
+  animation: scaleIn 0.2s cubic-bezier(0.16, 1, 0.3, 1);
+}
+
+@keyframes fadeIn {
+  from { opacity: 0; }
+  to { opacity: 1; }
+}
+
+@keyframes scaleIn {
+  from {
+    opacity: 0;
+    transform: scale(0.96);
+  }
+  to {
+    opacity: 1;
+    transform: scale(1);
+  }
+}
+
+.shortcutsModalHeader {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 16px 20px;
+  border-bottom: 1px solid var(--fc-border-subtle);
+}
+
+.shortcutsModalHeader strong {
+  font-size: 16px;
+  font-weight: 600;
+}
+
+.shortcutsModalBody {
+  padding: 16px 20px;
+  overflow-y: auto;
+  display: flex;
+  flex-direction: column;
+  gap: 20px;
+}
+
+.shortcutsSearch {
+  width: 100%;
+  padding: 8px 12px;
+  border-radius: 8px;
+  border: 1px solid var(--fc-border);
+  background: var(--fc-bg-surface);
+  color: var(--fc-text-primary);
+  font-size: 13px;
+  outline: none;
+}
+
+.shortcutsSearch:focus {
+  border-color: var(--fc-border-focus);
+}
+
+.shortcutsCategoryTitle {
+  font-size: 12px;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  color: var(--fc-teal-700);
+  margin-bottom: 8px;
+}
+
+.shortcutsGrid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(260px, 1fr));
+  gap: 8px 16px;
+}
+
+.shortcutRow {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 5px 0;
+  font-size: 13px;
+  border-bottom: 1px dashed var(--fc-border-subtle);
+}
+
+.shortcutKeys {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+}
+
+.kbdBadge {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 22px;
+  height: 22px;
+  padding: 0 5px;
+  font-family: inherit;
+  font-size: 11px;
+  font-weight: 600;
+  border-radius: 4px;
+  background: var(--fc-bg-muted);
+  border: 1px solid var(--fc-border);
+  box-shadow: 0 1px 1px rgba(0, 0, 0, 0.08);
+  color: var(--fc-text-primary);
+}

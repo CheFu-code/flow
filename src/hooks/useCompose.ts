@@ -2,6 +2,7 @@
 
 import {
   useCallback,
+  useEffect,
   useMemo,
   useRef,
   useState,
@@ -28,9 +29,11 @@ import type {
   ComposeAttachment,
   ComposeFields,
   ContactPreview,
+  DraftSaveState,
   FlowConfig,
   MailMessage,
   StatusMessage,
+  UndoSendState,
 } from '@/lib/flow-console/types';
 
 export interface UseComposeOptions {
@@ -38,6 +41,28 @@ export interface UseComposeOptions {
   config: FlowConfig;
   onStatusChange: (status: StatusMessage | null) => void;
   onMailSentSuccess?: () => void;
+}
+
+const DRAFT_STORAGE_KEY = 'flow-compose-draft-backup-v1';
+
+function readSavedDraft(): {
+  composeFields?: ComposeFields;
+  recipientEmails?: string[];
+  composeAttachments?: ComposeAttachment[];
+  draftId?: string | null;
+} | null {
+  if (typeof window === 'undefined') return null;
+  try {
+    const stored = window.localStorage.getItem(DRAFT_STORAGE_KEY);
+    return stored ? (JSON.parse(stored) as {
+      composeFields?: ComposeFields;
+      recipientEmails?: string[];
+      composeAttachments?: ComposeAttachment[];
+      draftId?: string | null;
+    }) : null;
+  } catch {
+    return null;
+  }
 }
 
 export function useCompose({
@@ -48,16 +73,39 @@ export function useCompose({
 }: UseComposeOptions) {
   const [composeOpen, setComposeOpen] = useState(false);
   const [composeExpanded, setComposeExpanded] = useState(false);
-  const [composeFields, setComposeFields] = useState<ComposeFields>(initialCompose);
-  const [composeAttachments, setComposeAttachments] = useState<ComposeAttachment[]>([]);
-  const [recipientEmails, setRecipientEmails] = useState<string[]>([]);
-  const [draftId, setDraftId] = useState<string | null>(null);
+  const [composeFields, setComposeFields] = useState<ComposeFields>(() => {
+    const saved = readSavedDraft();
+    return saved?.composeFields || initialCompose;
+  });
+  const [composeAttachments, setComposeAttachments] = useState<ComposeAttachment[]>(() => {
+    const saved = readSavedDraft();
+    return saved?.composeAttachments || [];
+  });
+  const [recipientEmails, setRecipientEmails] = useState<string[]>(() => {
+    const saved = readSavedDraft();
+    return saved?.recipientEmails || [];
+  });
+  const [draftId, setDraftId] = useState<string | null>(() => {
+    const saved = readSavedDraft();
+    return saved?.draftId || null;
+  });
   const [isSending, setIsSending] = useState(false);
   const [isSavingDraft, setIsSavingDraft] = useState(false);
   const [formatToolbarOpen, setFormatToolbarOpen] = useState(true);
   const [emojiPickerOpen, setEmojiPickerOpen] = useState(false);
   const [moreToolsOpen, setMoreToolsOpen] = useState(false);
   const [sendOptionsOpen, setSendOptionsOpen] = useState(false);
+
+  // Draft Auto-Save State
+  const [draftSaveState, setDraftSaveState] = useState<DraftSaveState>({
+    status: 'idle',
+    lastSavedAt: null,
+  });
+  const lastSavedContentRef = useRef<string>('');
+
+  // Undo Send State
+  const [undoSendState, setUndoSendState] = useState<UndoSendState | null>(null);
+  const pendingSendRef = useRef<UndoSendState | null>(null);
 
   const composeEditorRef = useRef<HTMLDivElement | null>(null);
   const composeFormRef = useRef<HTMLFormElement | null>(null);
@@ -362,6 +410,11 @@ export function useCompose({
     setMoreToolsOpen(false);
     setRecipientEmails([]);
     setSendOptionsOpen(false);
+    setDraftSaveState({ status: 'idle', lastSavedAt: null });
+    lastSavedContentRef.current = '';
+    try {
+      window.localStorage.removeItem(DRAFT_STORAGE_KEY);
+    } catch {}
     if (composeEditorRef.current) composeEditorRef.current.innerHTML = '';
   }, []);
 
@@ -370,6 +423,154 @@ export function useCompose({
     composeFields.subject.trim() ||
     composeFields.body.trim() ||
     composeAttachments.length > 0;
+
+  // Synchronize editor innerHTML if editor mounts with restored draft body
+  useEffect(() => {
+    if (composeOpen && composeEditorRef.current && composeFields.body) {
+      if (!composeEditorRef.current.innerHTML) {
+        composeEditorRef.current.innerHTML = composeFields.body;
+      }
+    }
+  }, [composeOpen, composeFields.body]);
+
+  // Periodic draft auto-save interval (every 4 seconds) & local backup
+  useEffect(() => {
+    if (!composeOpen || !canWrite) return;
+
+    const interval = setInterval(() => {
+      const body = currentComposeBody();
+      const recipients = composeRecipients;
+      const hasContent =
+        recipients.length > 0 ||
+        composeFields.subject.trim().length > 0 ||
+        body.trim().length > 0;
+
+      if (!hasContent || isSavingDraft || isSending) return;
+
+      const currentContent = JSON.stringify({
+        body,
+        from: composeFrom,
+        subject: composeFields.subject,
+        to: recipients,
+      });
+
+      // Also persist to localStorage backup immediately
+      try {
+        window.localStorage.setItem(
+          DRAFT_STORAGE_KEY,
+          JSON.stringify({
+            composeAttachments,
+            composeFields: { ...composeFields, body },
+            draftId,
+            recipientEmails,
+            updatedAt: Date.now(),
+          }),
+        );
+      } catch {}
+
+      // If content hasn't changed since last server save, skip network request
+      if (currentContent === lastSavedContentRef.current) return;
+
+      setDraftSaveState(prev => ({ ...prev, status: 'saving' }));
+      lastSavedContentRef.current = currentContent;
+
+      fetch(apiUrl('/flow/drafts'), {
+        body: JSON.stringify({
+          body,
+          ...(draftId ? { draftId } : {}),
+          from: composeFrom,
+          subject: composeFields.subject,
+          to: recipients,
+        }),
+        credentials: 'include',
+        headers: { 'Content-Type': 'application/json', ...flowHeaders() },
+        method: 'POST',
+      })
+        .then(res => responseJson<{ draftId?: string }>(res))
+        .then(saved => {
+          if (saved.draftId && !draftId) {
+            setDraftId(saved.draftId);
+          }
+          const time = new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+          setDraftSaveState({ lastSavedAt: time, status: 'saved' });
+        })
+        .catch(err => {
+          setDraftSaveState({
+            error: err instanceof Error ? err.message : 'Draft sync error',
+            lastSavedAt: null,
+            status: 'error',
+          });
+        });
+    }, 4000);
+
+    return () => clearInterval(interval);
+  }, [
+    canWrite,
+    composeAttachments,
+    composeFields,
+    composeFrom,
+    composeOpen,
+    composeRecipients,
+    currentComposeBody,
+    draftId,
+    isSavingDraft,
+    isSending,
+    recipientEmails,
+  ]);
+
+  // Force manual draft save (Cmd/Ctrl + S)
+  const saveDraftNow = useCallback(async () => {
+    if (!canWrite || isSavingDraft) return;
+    const body = currentComposeBody();
+    const recipients = composeRecipients;
+    const hasContent =
+      recipients.length > 0 ||
+      composeFields.subject.trim().length > 0 ||
+      body.trim().length > 0;
+
+    if (!hasContent) return;
+
+    setDraftSaveState(prev => ({ ...prev, status: 'saving' }));
+    setIsSavingDraft(true);
+    try {
+      const saved = await fetch(apiUrl('/flow/drafts'), {
+        body: JSON.stringify({
+          body,
+          ...(draftId ? { draftId } : {}),
+          from: composeFrom,
+          subject: composeFields.subject,
+          to: recipients,
+        }),
+        credentials: 'include',
+        headers: { 'Content-Type': 'application/json', ...flowHeaders() },
+        method: 'POST',
+      }).then(res => responseJson<{ draftId?: string }>(res));
+
+      if (saved.draftId && !draftId) {
+        setDraftId(saved.draftId);
+      }
+      const time = new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+      setDraftSaveState({ lastSavedAt: time, status: 'saved' });
+      onStatusChange({ kind: 'success', text: `Draft saved at ${time}` });
+    } catch (error) {
+      setDraftSaveState(prev => ({ ...prev, status: 'error' }));
+      onStatusChange({
+        kind: 'info',
+        text: error instanceof Error ? error.message : 'Draft save failed.',
+      });
+    } finally {
+      setIsSavingDraft(false);
+    }
+  }, [
+    canWrite,
+    composeFields.subject,
+    composeFrom,
+    composeRecipients,
+    currentComposeBody,
+    draftId,
+    isSavingDraft,
+    onStatusChange,
+  ]);
 
   const saveDraftAndClose = useCallback(async () => {
     if (!canWrite || isSavingDraft) {
@@ -442,26 +643,19 @@ export function useCompose({
     [canWrite, onStatusChange, resetCompose],
   );
 
-  const submitCompose = useCallback(
-    async (event: FormEvent<HTMLFormElement>) => {
-      event.preventDefault();
-      if (!canWrite || sendLockRef.current) return;
-
-      const recipients = composeRecipients;
-      const body = currentComposeBody();
-
-      if (!recipients.length) {
-        onStatusChange({ kind: 'info', text: 'Enter at least one valid recipient.' });
-        return;
-      }
-
+  // Execute actual network send
+  const executeSend = useCallback(
+    async (state: UndoSendState) => {
+      pendingSendRef.current = null;
+      setUndoSendState(null);
       sendLockRef.current = true;
       setIsSending(true);
+
       try {
         const response = await fetch(apiUrl('/flow/send'), {
           body: JSON.stringify({
             action: 'campaign',
-            attachments: composeAttachments.map(attachment => ({
+            attachments: state.attachments.map(attachment => ({
               content: attachment.content,
               contentId: attachment.contentId,
               contentType: attachment.contentType,
@@ -469,14 +663,14 @@ export function useCompose({
               size: attachment.size,
             })),
             bodyFormat: 'html',
-            from: composeFrom,
-            html: body,
-            recipients: recipients.map(email => ({
+            from: state.from,
+            html: state.body,
+            recipients: state.recipients.map(email => ({
               email,
               firstName: email.split('@')[0],
               tags: ['manual'],
             })),
-            subject: composeFields.subject,
+            subject: state.subject,
             tags: ['flow'],
           }),
           credentials: 'include',
@@ -487,32 +681,44 @@ export function useCompose({
 
         // Optimistically publish new message to realtimeBus for all tabs
         const sentMessage: MailMessage = {
-          attachments: composeAttachments.length,
-          body,
+          attachments: state.attachments.length,
+          body: state.body,
           clickCount: 0,
           contentLoaded: true,
           date: new Date().toISOString(),
           direction: 'outbound',
           folder: 'sent',
-          from: composeFrom,
-          html: body,
+          from: state.from,
+          html: state.body,
           id: data.messageId || `sent_${Date.now()}`,
           name: 'Flow Mail',
           openCount: 0,
-          preview: body.replace(/<[^>]+>/g, '').slice(0, 120),
+          preview: state.body.replace(/<[^>]+>/g, '').slice(0, 120),
           references: [],
           starred: false,
-          subject: composeFields.subject || '(no subject)',
-          to: recipients,
+          subject: state.subject || '(no subject)',
+          to: state.recipients,
           unread: false,
         };
         realtimeBus.publish({ type: 'NEW_MESSAGE', message: sentMessage });
 
-        setComposeOpen(false);
+        // Clean up draft if this was an existing draft
+        if (state.draftId) {
+          fetch(apiUrl(`/flow/drafts/${state.draftId}`), {
+            credentials: 'include',
+            headers: flowHeaders(),
+            method: 'DELETE',
+          }).catch(() => {});
+        }
+
+        try {
+          window.localStorage.removeItem(DRAFT_STORAGE_KEY);
+        } catch {}
+
         onStatusChange({
           kind: 'success',
-          text: `Email sent to ${data.count || recipients.length} recipient${
-            (data.count || recipients.length) === 1 ? '' : 's'
+          text: `Email sent to ${data.count || state.recipients.length} recipient${
+            (data.count || state.recipients.length) === 1 ? '' : 's'
           }.`,
         });
         resetCompose();
@@ -527,16 +733,115 @@ export function useCompose({
         setIsSending(false);
       }
     },
+    [onMailSentSuccess, onStatusChange, resetCompose],
+  );
+
+  // Undo Send handlers
+  const undoSend = useCallback(() => {
+    if (!pendingSendRef.current) return;
+    const state = pendingSendRef.current;
+    clearTimeout(state.timeoutId);
+    pendingSendRef.current = null;
+    setUndoSendState(null);
+
+    // Restore compose state
+    setComposeFields({
+      body: state.body,
+      from: state.from,
+      subject: state.subject,
+      to: '',
+    });
+    setRecipientEmails(state.recipientEmails);
+    setComposeAttachments(state.attachments);
+    setDraftId(state.draftId);
+    setComposeOpen(true);
+
+    window.requestAnimationFrame(() => {
+      if (composeEditorRef.current) {
+        composeEditorRef.current.innerHTML = state.body;
+      }
+    });
+
+    onStatusChange({ kind: 'info', text: 'Sending cancelled. Draft restored.' });
+  }, [onStatusChange]);
+
+  const sendImmediately = useCallback(() => {
+    if (!pendingSendRef.current) return;
+    const state = pendingSendRef.current;
+    clearTimeout(state.timeoutId);
+    void executeSend(state);
+  }, [executeSend]);
+
+  // Window beforeunload flush for pending send
+  useEffect(() => {
+    const handleBeforeUnload = () => {
+      if (pendingSendRef.current) {
+        const state = pendingSendRef.current;
+        clearTimeout(state.timeoutId);
+        void executeSend(state);
+      }
+    };
+    window.addEventListener('beforeunload', handleBeforeUnload);
+    return () => window.removeEventListener('beforeunload', handleBeforeUnload);
+  }, [executeSend]);
+
+  const submitCompose = useCallback(
+    async (event: FormEvent<HTMLFormElement>) => {
+      event.preventDefault();
+      if (!canWrite || sendLockRef.current) return;
+
+      const recipients = composeRecipients;
+      const body = currentComposeBody();
+
+      if (!recipients.length) {
+        onStatusChange({ kind: 'info', text: 'Enter at least one valid recipient.' });
+        return;
+      }
+
+      // Snapshot compose state for Undo Send (5 second grace period)
+      const currentAttachments = [...composeAttachments];
+      const currentFields = { ...composeFields };
+      const currentRecipientEmails = [...recipientEmails];
+      const currentDraftId = draftId;
+      const currentFrom = composeFrom;
+
+      // Close composer immediately for instant feel
+      setComposeOpen(false);
+
+      const sendId = `send_${Date.now()}`;
+      const timeoutId = setTimeout(() => {
+        if (pendingSendRef.current?.id === sendId) {
+          void executeSend(pendingSendRef.current);
+        }
+      }, 5000);
+
+      const pendingState: UndoSendState = {
+        attachments: currentAttachments,
+        body,
+        draftId: currentDraftId,
+        from: currentFrom,
+        id: sendId,
+        recipientEmails: currentRecipientEmails,
+        recipients,
+        secondsRemaining: 5,
+        subject: currentFields.subject,
+        timeoutId,
+      };
+
+      pendingSendRef.current = pendingState;
+      setUndoSendState(pendingState);
+    },
     [
       canWrite,
       composeAttachments,
-      composeFields.subject,
+      composeFields,
       composeFrom,
       composeRecipients,
       currentComposeBody,
-      onMailSentSuccess,
+      draftId,
+      executeSend,
       onStatusChange,
-      resetCompose,
+      recipientEmails,
     ],
   );
 
@@ -557,6 +862,7 @@ export function useCompose({
     currentComposeBody,
     discardCompose,
     draftId,
+    draftSaveState,
     emojiPickerOpen,
     focusComposeEditor,
     formatToolbarOpen,
@@ -583,6 +889,8 @@ export function useCompose({
     resetCompose,
     runEditorCommand,
     saveDraftAndClose,
+    saveDraftNow,
+    sendImmediately,
     sendOptionsOpen,
     setComposeAttachments,
     setComposeExpanded,
@@ -597,6 +905,8 @@ export function useCompose({
     submitCompose,
     syncComposeBody,
     totalAttachmentBytes,
+    undoSend,
+    undoSendState,
     updateComposeField,
   };
 }

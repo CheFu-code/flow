@@ -1,6 +1,6 @@
 'use client';
 
-import type { ChangeEvent, KeyboardEvent, MouseEvent } from 'react';
+import { useEffect, useRef, type ChangeEvent, type KeyboardEvent, type MouseEvent } from 'react';
 import { Loader2 } from 'lucide-react';
 import { MessageRow } from './MessageRow';
 import { MailboxEmptyState } from './MailboxEmptyState';
@@ -10,7 +10,6 @@ import type {
   ContactPreview,
   MailFolder,
   MailThread,
-  StatusMessage,
 } from '@/lib/flow-console/types';
 import styles from '@/components/FlowConsole.module.css';
 
@@ -26,10 +25,17 @@ export interface MailboxListProps {
   debouncedQuery: string;
   renderedThreads: MailThread[];
   selectedIdSet: Set<string>;
-  status?: StatusMessage | null;
   totalThreads: number;
   virtualEnd: number;
   virtualStart: number;
+  pageStart?: number;
+  pageEnd?: number;
+  currentPage?: number;
+  totalPages?: number;
+  focusedThreadId?: string | null;
+  paginationMode?: 'virtual' | 'paginated';
+  onNextPage?: () => void;
+  onPrevPage?: () => void;
   onDeleteSelected: () => void;
   onKeyDown: (event: KeyboardEvent<HTMLDivElement>, threadId: string) => void;
   onLoadMore: () => void;
@@ -55,10 +61,17 @@ export function MailboxList({
   debouncedQuery,
   renderedThreads,
   selectedIdSet,
-  status,
   totalThreads,
   virtualEnd,
   virtualStart,
+  pageStart,
+  pageEnd,
+  currentPage,
+  totalPages,
+  focusedThreadId,
+  paginationMode = 'virtual',
+  onNextPage,
+  onPrevPage,
   onDeleteSelected,
   onKeyDown,
   onLoadMore,
@@ -71,15 +84,43 @@ export function MailboxList({
   onToggleStarred,
   selectedFolderTitle,
 }: MailboxListProps) {
+  const sentinelRef = useRef<HTMLDivElement | null>(null);
+
+  // IntersectionObserver sentinel for automatic seamless infinite scroll
+  useEffect(() => {
+    if (paginationMode === 'paginated') return;
+    const sentinel = sentinelRef.current;
+    if (!sentinel) return;
+
+    const observer = new IntersectionObserver(
+      entries => {
+        const entry = entries[0];
+        if (entry?.isIntersecting && !isLoadingMore && !isLoadingMessages) {
+          onLoadMore();
+        }
+      },
+      { rootMargin: '300px 0px' },
+    );
+
+    observer.observe(sentinel);
+    return () => observer.disconnect();
+  }, [isLoadingMessages, isLoadingMore, onLoadMore, paginationMode]);
+
   return (
     <div className={styles.listPane}>
       <MailboxToolbar
         allThreadsCount={allThreadsCount}
         allVisibleSelected={allVisibleSelected}
+        currentPage={currentPage}
         hasSelection={hasSelection}
         onDeleteSelected={onDeleteSelected}
+        onNextPage={onNextPage}
+        onPrevPage={onPrevPage}
         onSelectAll={onSelectAll}
+        pageEnd={pageEnd}
+        pageStart={pageStart}
         selectedFolderTitle={selectedFolderTitle}
+        totalPages={totalPages}
         totalThreads={totalThreads}
       />
 
@@ -100,8 +141,8 @@ export function MailboxList({
           const element = event.currentTarget;
           onScroll(element.scrollTop);
           if (
-            element.scrollTop + element.clientHeight >=
-            element.scrollHeight - 240
+            paginationMode === 'virtual' &&
+            element.scrollTop + element.clientHeight >= element.scrollHeight - 280
           ) {
             onLoadMore();
           }
@@ -111,9 +152,13 @@ export function MailboxList({
           <MailboxSkeleton count={12} />
         ) : renderedThreads.length > 0 ? (
           <>
-            <div style={{ height: virtualStart * 44 }} />
+            {paginationMode === 'virtual' ? (
+              <div style={{ height: virtualStart * 44 }} />
+            ) : null}
+
             {renderedThreads.map(thread => (
               <MessageRow
+                isKeyboardFocused={thread.id === focusedThreadId}
                 isSelected={selectedIdSet.has(thread.id)}
                 key={thread.id}
                 onKeyDown={onKeyDown}
@@ -125,11 +170,19 @@ export function MailboxList({
                 thread={thread}
               />
             ))}
-            <div
-              style={{
-                height: Math.max(0, (totalThreads - virtualEnd) * 44),
-              }}
-            />
+
+            {paginationMode === 'virtual' ? (
+              <div
+                style={{
+                  height: Math.max(0, (totalThreads - virtualEnd) * 44),
+                }}
+              />
+            ) : null}
+
+            {/* Infinite scroll sentinel */}
+            {paginationMode === 'virtual' ? (
+              <div ref={sentinelRef} style={{ height: 1, width: '100%' }} />
+            ) : null}
           </>
         ) : (
           <MailboxEmptyState
