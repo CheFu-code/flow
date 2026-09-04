@@ -1,6 +1,6 @@
 'use client';
 
-import { type ReactNode } from 'react';
+import { useState, type ReactNode } from 'react';
 import {
   CalendarDays,
   Mail,
@@ -10,10 +10,10 @@ import {
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import {
-  HoverCard,
-  HoverCardContent,
-  HoverCardTrigger,
-} from '@/components/ui/hover-card';
+  Popover,
+  PopoverContent,
+  PopoverTrigger,
+} from '@/components/ui/popover';
 import { getInitial } from '@/lib/flow-console/format';
 import type { ContactPreview } from '@/lib/flow-console/types';
 
@@ -38,13 +38,21 @@ export function ContactHoverCard({
   side = 'bottom',
   align = 'start',
 }: ContactHoverCardProps) {
+  const [open, setOpen] = useState(false);
   const initial = getInitial(contact.name || contact.email);
 
+  const handleAction = (action: () => void) => {
+    setOpen(false);
+    action();
+  };
+
   return (
-    <HoverCard>
-      <HoverCardTrigger
+    <Popover open={open} onOpenChange={setOpen}>
+      <PopoverTrigger
+        openOnHover
         delay={openDelay}
         closeDelay={closeDelay}
+        nativeButton={false}
         render={<span className="inline-flex max-w-full cursor-pointer" />}
         onClick={event => event.stopPropagation()}
       >
@@ -53,8 +61,8 @@ export function ContactHoverCard({
             {contact.name || contact.email}
           </span>
         )}
-      </HoverCardTrigger>
-      <HoverCardContent
+      </PopoverTrigger>
+      <PopoverContent
         align={align}
         side={side}
         sideOffset={6}
@@ -78,7 +86,7 @@ export function ContactHoverCard({
             className="size-8 text-muted-foreground hover:text-foreground"
             onClick={event => {
               event.stopPropagation();
-              onTool('Contact card', contact);
+              handleAction(() => onTool('Contact card', contact));
             }}
             size="icon-sm"
             type="button"
@@ -93,7 +101,7 @@ export function ContactHoverCard({
             className="flex-1 bg-teal-700 hover:bg-teal-800 text-white dark:bg-teal-600 dark:hover:bg-teal-700 h-8 text-xs font-semibold"
             onClick={event => {
               event.stopPropagation();
-              onCompose(contact);
+              handleAction(() => onCompose(contact));
             }}
             size="sm"
             type="button"
@@ -107,7 +115,7 @@ export function ContactHoverCard({
             className="size-8 text-muted-foreground hover:text-foreground"
             onClick={event => {
               event.stopPropagation();
-              onTool('Chat', contact);
+              handleAction(() => onTool('Chat', contact));
             }}
             size="icon-sm"
             type="button"
@@ -121,7 +129,7 @@ export function ContactHoverCard({
             className="size-8 text-muted-foreground hover:text-foreground"
             onClick={event => {
               event.stopPropagation();
-              onTool('Video call', contact);
+              handleAction(() => onTool('Video call', contact));
             }}
             size="icon-sm"
             type="button"
@@ -135,7 +143,7 @@ export function ContactHoverCard({
             className="size-8 text-muted-foreground hover:text-foreground"
             onClick={event => {
               event.stopPropagation();
-              onTool('Calendar', contact);
+              handleAction(() => onTool('Calendar', contact));
             }}
             size="icon-sm"
             type="button"
@@ -144,7 +152,8 @@ export function ContactHoverCard({
             <CalendarDays className="size-3.5" />
           </Button>
         </div>
-      </HoverCardContent>
-    </HoverCard>
+      </PopoverContent>
+    </Popover>
   );
 }
+
