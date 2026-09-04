@@ -223,6 +223,9 @@ function sanitizeAttributes(tag: string, rawAttributes: string) {
       }
 
       if (name === 'title' || tableAttributes.has(name)) {
+        if (name === 'bgcolor' && isLightBackground(value)) {
+          return '';
+        }
         attributes.push(`${name}="${escapeAttribute(value)}"`);
       }
 
@@ -231,6 +234,21 @@ function sanitizeAttributes(tag: string, rawAttributes: string) {
   );
 
   return attributes.length ? ` ${attributes.join(' ')}` : '';
+}
+
+function isLightBackground(value: string): boolean {
+  const v = value.trim().toLowerCase();
+  return (
+    v === 'white' ||
+    v === '#fff' ||
+    v === '#ffffff' ||
+    v === 'transparent' ||
+    v === 'inherit' ||
+    v === 'initial' ||
+    /^#f[0-9a-f]{5}$/i.test(v) ||
+    /^#f[0-9a-f]{2}$/i.test(v) ||
+    /^rgba?\(\s*25[0-5]\s*,\s*25[0-5]\s*,\s*25[0-5]/i.test(v)
+  );
 }
 
 function sanitizeStyle(value: string) {
@@ -246,6 +264,14 @@ function sanitizeStyle(value: string) {
       const rawValue = rule.slice(separator + 1).trim();
       if (!allowedStyleProperties.has(property)) return '';
       if (/expression|javascript:|vbscript:|data:text\/html|url\s*\(/i.test(rawValue)) {
+        return '';
+      }
+
+      // Neutralize white/near-white backgrounds from pasted signatures/rich text
+      if (
+        (property === 'background' || property === 'background-color') &&
+        isLightBackground(rawValue)
+      ) {
         return '';
       }
 

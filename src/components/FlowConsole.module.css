@@ -1200,6 +1200,61 @@
   text-decoration: underline;
 }
 
+/* Neutralize pasted email inline text backgrounds that cause highlighter effect */
+.readerHtml span,
+.readerHtml font,
+.readerHtml p,
+.readerHtml div:not([class]),
+.readerHtml td,
+.readerHtml th {
+  background-color: transparent !important;
+}
+
+/* In dark mode, ensure email text and borders adapt seamlessly */
+:global(.dark) .readerHtml {
+  color: var(--fc-text-primary) !important;
+}
+
+:global(.dark) .readerHtml span,
+:global(.dark) .readerHtml font,
+:global(.dark) .readerHtml p,
+:global(.dark) .readerHtml div:not([class]),
+:global(.dark) .readerHtml td,
+:global(.dark) .readerHtml th,
+:global(.dark) .readerHtml li,
+:global(.dark) .readerHtml blockquote {
+  background-color: transparent !important;
+  background: transparent !important;
+}
+
+/* Prevent hardcoded black/dark text in email HTML from being unreadable in dark mode */
+:global(.dark) .readerHtml [style*="color: #0"],
+:global(.dark) .readerHtml [style*="color:#0"],
+:global(.dark) .readerHtml [style*="color: #1"],
+:global(.dark) .readerHtml [style*="color:#1"],
+:global(.dark) .readerHtml [style*="color: #2"],
+:global(.dark) .readerHtml [style*="color:#2"],
+:global(.dark) .readerHtml [style*="color: #3"],
+:global(.dark) .readerHtml [style*="color:#3"],
+:global(.dark) .readerHtml [style*="color: #4"],
+:global(.dark) .readerHtml [style*="color:#4"],
+:global(.dark) .readerHtml [style*="color: #5"],
+:global(.dark) .readerHtml [style*="color:#5"],
+:global(.dark) .readerHtml [style*="color: rgb(0"],
+:global(.dark) .readerHtml [style*="color: rgb(1"],
+:global(.dark) .readerHtml [style*="color: rgb(2"],
+:global(.dark) .readerHtml [style*="color: rgb(3"],
+:global(.dark) .readerHtml [style*="color: rgb(4"],
+:global(.dark) .readerHtml [style*="color: rgb(5"],
+:global(.dark) .readerHtml [style*="color: black"],
+:global(.dark) .readerHtml font[color*="#0"],
+:global(.dark) .readerHtml font[color*="#1"],
+:global(.dark) .readerHtml font[color*="#2"],
+:global(.dark) .readerHtml font[color*="#3"],
+:global(.dark) .readerHtml font[color="black"] {
+  color: var(--fc-text-primary) !important;
+}
+
 .reactionRow {
   display: flex;
   flex-wrap: wrap;
