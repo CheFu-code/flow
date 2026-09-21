@@ -5,7 +5,7 @@ import { Analytics } from "@vercel/analytics/next";
 
 export const metadata: Metadata = {
     title: "Flow",
-    description: "CHEFU TECHNOLOGIES email ecosystem.",
+    description: "Chefu Technologies email ecosystem.",
     icons: {
         icon: "/icon.svg",
         shortcut: "/icon.svg",
