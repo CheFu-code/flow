@@ -166,13 +166,14 @@ export function useThreadActions({
   );
 
   // General thread mutation helper (archive, report, unread, folder move)
-  const mutateThread = useCallback(
+  const mutateThreads = useCallback(
     async ({
       body,
       endpoint,
       folder,
       keepOpen = false,
       success,
+      threads,
       unread,
     }: {
       body?: Record<string, string>;
@@ -180,11 +181,12 @@ export function useThreadActions({
       folder?: MessageFolder;
       keepOpen?: boolean;
       success: string;
+      threads: MailThread[];
       unread?: boolean;
     }) => {
-      if (!selectedThread) return;
-
-      const messageIds = selectedThread.allMessages.map(message => message.id);
+      const messageIds = threads.flatMap(thread =>
+        thread.allMessages.map(message => message.id),
+      );
       if (!messageIds.length) return;
 
       // Optimistic local update
@@ -234,18 +236,39 @@ export function useThreadActions({
         });
       }
     },
-    [onStatusChange, selectedThread, setMessages, setSelectedThreadId],
+    [onStatusChange, setMessages, setSelectedThreadId],
   );
 
-  // Archive open conversation
-  const archiveThread = useCallback(() => {
-    return mutateThread({
-      endpoint: 'archive',
-      folder: 'archived',
-      success: 'Conversation archived.',
-      unread: false,
-    });
-  }, [mutateThread]);
+  const mutateThread = useCallback(
+    (options: Omit<Parameters<typeof mutateThreads>[0], 'threads'>) => {
+      if (!selectedThread) return;
+      return mutateThreads({ ...options, threads: [selectedThread] });
+    },
+    [mutateThreads, selectedThread],
+  );
+
+  // Archive an explicit, open, or selected conversation without waiting for selection state.
+  const archiveThread = useCallback(
+    (threadId?: string) => {
+      const threads = threadId
+        ? visibleThreads.filter(thread => thread.id === threadId)
+        : selectedThread
+          ? [selectedThread]
+          : visibleThreads.filter(thread => selectedIds.includes(thread.id));
+      if (!threads.length) return;
+
+      return mutateThreads({
+        endpoint: 'archive',
+        folder: 'archived',
+        success: threads.length === 1
+          ? 'Conversation archived.'
+          : 'Conversations archived.',
+        threads,
+        unread: false,
+      });
+    },
+    [mutateThreads, selectedIds, selectedThread, visibleThreads],
+  );
 
   // Report conversation as spam
   const reportThread = useCallback(() => {

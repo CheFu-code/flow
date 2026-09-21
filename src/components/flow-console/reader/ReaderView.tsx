@@ -4,6 +4,11 @@ import type { MouseEvent } from 'react';
 import { ExternalLink, Printer } from 'lucide-react';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
+import {
+  Tooltip,
+  TooltipContent,
+  TooltipTrigger,
+} from '@/components/ui/tooltip';
 import { ReaderMessageItem } from './ReaderMessageItem';
 import { ReaderQuickReply } from './ReaderQuickReply';
 import { ReaderToolbar } from './ReaderToolbar';
@@ -93,26 +98,40 @@ export function ReaderView({
         </div>
 
         <div className="flex items-center gap-1 shrink-0">
-          <Button
-            aria-label="Print entire conversation"
-            className="size-8 text-muted-foreground hover:text-foreground"
-            onClick={onPrint}
-            size="icon-sm"
-            type="button"
-            variant="ghost"
-          >
-            <Printer className="size-4" />
-          </Button>
-          <Button
-            aria-label="Open conversation in new window"
-            className="size-8 text-muted-foreground hover:text-foreground"
-            onClick={onOpenNewWindow}
-            size="icon-sm"
-            type="button"
-            variant="ghost"
-          >
-            <ExternalLink className="size-4" />
-          </Button>
+          <Tooltip>
+            <TooltipTrigger
+              render={
+                <Button
+                  aria-label="Print entire conversation"
+                  className="size-8 text-muted-foreground hover:text-foreground"
+                  onClick={onPrint}
+                  size="icon-sm"
+                  type="button"
+                  variant="ghost"
+                />
+              }
+            >
+              <Printer className="size-4" />
+            </TooltipTrigger>
+            <TooltipContent>Print conversation</TooltipContent>
+          </Tooltip>
+          <Tooltip>
+            <TooltipTrigger
+              render={
+                <Button
+                  aria-label="Open conversation in new window"
+                  className="size-8 text-muted-foreground hover:text-foreground"
+                  onClick={onOpenNewWindow}
+                  size="icon-sm"
+                  type="button"
+                  variant="ghost"
+                />
+              }
+            >
+              <ExternalLink className="size-4" />
+            </TooltipTrigger>
+            <TooltipContent>Open in new window</TooltipContent>
+          </Tooltip>
         </div>
       </div>
 

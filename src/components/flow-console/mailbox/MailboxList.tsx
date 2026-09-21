@@ -84,7 +84,15 @@ export function MailboxList({
   onToggleStarred,
   selectedFolderTitle,
 }: MailboxListProps) {
+  const listRef = useRef<HTMLDivElement | null>(null);
   const sentinelRef = useRef<HTMLDivElement | null>(null);
+
+  useEffect(() => {
+    if (paginationMode !== 'virtual') return;
+
+    listRef.current?.scrollTo({ top: 0 });
+    onScroll(0);
+  }, [onScroll, paginationMode]);
 
   // IntersectionObserver sentinel for automatic seamless infinite scroll
   useEffect(() => {
@@ -137,6 +145,7 @@ export function MailboxList({
         aria-busy={isLoadingMessages}
         aria-label="Message list"
         className={styles.messageList}
+        ref={listRef}
         onScroll={event => {
           const element = event.currentTarget;
           onScroll(element.scrollTop);
