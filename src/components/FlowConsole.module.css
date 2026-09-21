@@ -3,24 +3,24 @@
    ========================================================================== */
 
 .mailShell {
-  --fc-bg-shell: #f8fafc;
-  --fc-bg-header: #f1f5f9;
+  --fc-bg-shell: #f5f7fb;
+  --fc-bg-header: #ffffff;
   --fc-bg-surface: #ffffff;
-  --fc-bg-surface-elevated: #ffffff;
+  --fc-bg-surface-elevated: #f8fafc;
   --fc-bg-muted: #f1f5f9;
-  --fc-bg-hover: #e2e8f0;
-  --fc-bg-active: #cbd5e1;
-  --fc-bg-search: #e6fffb;
+  --fc-bg-hover: #eef4ff;
+  --fc-bg-active: #dfeaf7;
+  --fc-bg-search: #f3f7ff;
   --fc-bg-search-focus: #ffffff;
-  --fc-bg-unread: #f0fdfa;
+  --fc-bg-unread: #f6fbff;
 
   --fc-text-primary: #0f172a;
-  --fc-text-secondary: #475569;
+  --fc-text-secondary: #334155;
   --fc-text-muted: #64748b;
   --fc-text-inverse: #ffffff;
 
   --fc-border: #e2e8f0;
-  --fc-border-subtle: #f1f5f9;
+  --fc-border-subtle: #edf2f7;
   --fc-border-focus: #0f766e;
 
   --fc-teal-50: #f0fdfa;
@@ -102,13 +102,14 @@
 .header {
   display: grid;
   min-width: 0;
-  grid-template-columns: 42px 180px minmax(240px, 720px) minmax(160px, 1fr);
+  grid-template-columns: 42px 190px minmax(240px, 720px) minmax(160px, 1fr);
   align-items: center;
-  gap: 12px;
+  gap: 14px;
   background: var(--fc-bg-header);
   border-bottom: 1px solid var(--fc-border);
-  padding: 8px 18px;
+  padding: 12px 18px;
   z-index: 40;
+  box-shadow: inset 0 -1px 0 rgba(148, 163, 184, 0.08);
 }
 
 .brand {
@@ -492,7 +493,7 @@
 }
 
 .workspaceWithSidebar {
-  grid-template-columns: 240px minmax(0, 1fr);
+  grid-template-columns: 260px minmax(0, 1fr);
 }
 
 .contentPane {
@@ -500,7 +501,7 @@
   min-height: 0;
   min-width: 0;
   overflow: hidden;
-  background: var(--fc-bg-surface);
+  background: linear-gradient(180deg, #ffffff 0%, #f8fafc 100%);
   border-left: 1px solid var(--fc-border);
 }
 
@@ -513,25 +514,26 @@
   height: 100%;
   min-height: 0;
   flex-direction: column;
-  gap: 14px;
-  padding: 16px 12px;
-  background: var(--fc-bg-shell);
+  gap: 16px;
+  padding: 18px 14px 16px;
+  background: rgba(255, 255, 255, 0.4);
   overflow-y: auto;
+  backdrop-filter: blur(6px);
 }
 
 .composeButton {
   display: inline-flex;
-  height: 48px;
+  height: 52px;
   align-items: center;
   justify-content: center;
   gap: 12px;
   border: 0;
-  border-radius: 14px;
-  background: var(--fc-teal-700);
-  box-shadow: 0 4px 14px rgba(15, 118, 110, 0.28);
+  border-radius: 16px;
+  background: linear-gradient(135deg, #0f766e 0%, #14b8a6 100%);
+  box-shadow: 0 12px 26px rgba(15, 118, 110, 0.24);
   color: #ffffff;
   font-size: 14px;
-  font-weight: 600;
+  font-weight: 700;
   letter-spacing: -0.1px;
   cursor: pointer;
   transition: all 0.15s ease;
@@ -560,20 +562,20 @@
 .folderList {
   display: flex;
   flex-direction: column;
-  gap: 3px;
+  gap: 4px;
 }
 
 .folderButton {
   display: flex;
-  height: 38px;
+  height: 42px;
   align-items: center;
   gap: 12px;
   border: 0;
-  border-radius: 10px;
+  border-radius: 12px;
   background: transparent;
   color: var(--fc-text-secondary);
   font-size: 13.5px;
-  font-weight: 500;
+  font-weight: 600;
   padding: 0 12px;
   text-align: left;
   cursor: pointer;
@@ -587,9 +589,9 @@
 }
 
 .folderActive {
-  background: var(--fc-teal-50) !important;
+  background: linear-gradient(90deg, rgba(20, 184, 166, 0.1), rgba(20, 184, 166, 0.04)) !important;
   color: var(--fc-teal-700) !important;
-  font-weight: 600;
+  box-shadow: inset 0 0 0 1px rgba(20, 184, 166, 0.12);
 }
 
 .folderIcon {
@@ -637,13 +639,14 @@
 
 .listToolbar {
   display: flex;
-  height: 48px;
+  height: 56px;
   align-items: center;
   justify-content: space-between;
   border-bottom: 1px solid var(--fc-border);
-  padding: 0 16px;
-  background: var(--fc-bg-surface);
+  padding: 0 18px;
+  background: rgba(255, 255, 255, 0.84);
   z-index: 10;
+  backdrop-filter: blur(4px);
 }
 
 .listTools {
@@ -667,11 +670,11 @@
 
 .insightBar {
   display: flex;
-  height: 32px;
+  height: 36px;
   align-items: center;
   justify-content: space-between;
-  padding: 0 16px;
-  background: var(--fc-bg-muted);
+  padding: 0 18px;
+  background: linear-gradient(180deg, #f8fafc 0%, #f3f6fa 100%);
   border-bottom: 1px solid var(--fc-border-subtle);
   font-size: 12px;
   color: var(--fc-text-muted);
@@ -694,43 +697,49 @@
 .messageRow {
   position: relative;
   display: grid;
-  height: 44px;
-  grid-template-columns: 74px 190px minmax(200px, 1fr) 95px;
+  height: 60px;
+  grid-template-columns: 80px 190px minmax(200px, 1fr) 95px;
   align-items: center;
-  gap: 10px;
-  border-bottom: 1px solid var(--fc-border-subtle);
-  padding: 0 16px;
-  background: var(--fc-bg-surface);
+  gap: 12px;
+  border: 1px solid transparent;
+  border-radius: 14px;
+  margin: 4px 8px;
+  padding: 0 14px;
+  background: rgba(255, 255, 255, 0.8);
   color: var(--fc-text-secondary);
   font-size: 13.5px;
   cursor: pointer;
-  transition: background-color 0.1s ease;
+  transition: all 0.12s ease;
   user-select: none;
 }
 
 .messageRow:hover {
   background: var(--fc-bg-hover);
-  box-shadow: inset 1px 0 0 var(--fc-border), inset -1px 0 0 var(--fc-border);
+  border-color: rgba(148, 163, 184, 0.2);
 }
 
 .messageUnread {
-  background: var(--fc-bg-unread);
+  background: linear-gradient(90deg, rgba(15, 118, 110, 0.06), rgba(255, 255, 255, 0.92));
   color: var(--fc-text-primary);
   font-weight: 600;
+  border-color: rgba(20, 184, 166, 0.14);
 }
 
 .messageUnread::before {
   content: "";
   position: absolute;
-  left: 0;
-  top: 0;
-  bottom: 0;
-  width: 3.5px;
+  left: 12px;
+  top: 12px;
+  bottom: 12px;
+  width: 4px;
+  border-radius: 999px;
   background: var(--fc-teal-700);
 }
 
 .messageSelected {
-  background: var(--fc-teal-50) !important;
+  background: linear-gradient(90deg, rgba(20, 184, 166, 0.08), rgba(255, 255, 255, 0.96)) !important;
+  border-color: rgba(20, 184, 166, 0.18) !important;
+  box-shadow: 0 8px 18px rgba(15, 118, 110, 0.08);
 }
 
 .rowControls {
@@ -1005,19 +1014,20 @@
   height: 100%;
   min-height: 0;
   flex-direction: column;
-  background: var(--fc-bg-surface);
+  background: linear-gradient(180deg, #ffffff 0%, #f8fafc 100%);
   overflow: hidden;
 }
 
 .readerToolbar {
   display: flex;
-  height: 48px;
+  height: 52px;
   align-items: center;
   gap: 8px;
   border-bottom: 1px solid var(--fc-border);
-  padding: 0 16px;
-  background: var(--fc-bg-surface);
+  padding: 0 18px;
+  background: rgba(255, 255, 255, 0.82);
   z-index: 20;
+  backdrop-filter: blur(4px);
 }
 
 .readerToolbarGroup {
@@ -1055,8 +1065,8 @@
   justify-content: space-between;
   gap: 16px;
   border-bottom: 1px solid var(--fc-border-subtle);
-  padding: 18px 24px 14px;
-  background: var(--fc-bg-surface);
+  padding: 20px 26px 16px;
+  background: rgba(255, 255, 255, 0.8);
 }
 
 .readerSubject {
@@ -1090,19 +1100,19 @@
   flex: 1;
   min-height: 0;
   overflow-y: auto;
-  padding: 16px 24px 32px;
+  padding: 22px 26px 34px;
   display: flex;
   flex-direction: column;
-  gap: 16px;
+  gap: 18px;
 }
 
 .readerMessage {
   border: 1px solid var(--fc-border);
-  border-radius: 12px;
-  background: var(--fc-bg-surface-elevated);
-  padding: 18px 20px;
-  box-shadow: var(--fc-shadow-sm);
-  transition: border-color 0.15s ease;
+  border-radius: 18px;
+  background: rgba(255, 255, 255, 0.92);
+  padding: 20px 20px 18px;
+  box-shadow: 0 10px 22px rgba(15, 23, 42, 0.04);
+  transition: border-color 0.15s ease, box-shadow 0.15s ease;
 }
 
 .readerMessage:hover {
@@ -2500,17 +2510,22 @@
    ========================================================================== */
 
 .compactDensity .messageRow {
+  height: 52px;
+  font-size: 12.5px;
+  margin: 3px 6px;
+}
+
+.compactDensity .sidebar {
+  padding: 14px 10px 12px;
+}
+
+.compactDensity .folderButton {
   height: 36px;
   font-size: 12.5px;
 }
 
-.compactDensity .sidebar {
-  padding: 10px 8px;
-}
-
-.compactDensity .folderButton {
-  height: 32px;
-  font-size: 12.5px;
+.compactDensity .readerThread {
+  padding-top: 16px;
 }
 
 /* ==========================================================================
