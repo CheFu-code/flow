@@ -294,7 +294,7 @@ export function useCompose({
   }, [insertEditorHtml]);
 
   const insertSignature = useCallback(() => {
-    insertEditorHtml('<br /><br />Best regards,<br />CHEFU Technologies');
+    insertEditorHtml('<br /><br />Best regards,<br />Chefu Technologies');
   }, [insertEditorHtml]);
 
   const insertDivider = useCallback(() => {
