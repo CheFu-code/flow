@@ -9,3 +9,10 @@ export type AuthGateProps = {
         session: AuthenticatedFlowSession;
     }) => ReactNode;
 };
+
+export type FlowAccessResponse = {
+  error?: string;
+  expiresAt?: string;
+  granted: boolean;
+  keyLabel?: string;
+};
