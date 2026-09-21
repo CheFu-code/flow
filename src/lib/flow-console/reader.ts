@@ -1,3 +1,4 @@
+import { decode } from 'he';
 import { cleanReplyBody } from './mail';
 import type { MailMessage, MailThread } from './types';
 
@@ -157,7 +158,7 @@ export function renderReaderPrintDocument(thread: MailThread) {
 }
 
 function sanitizeReaderHtml(value: string) {
-  let body = extractBody(value);
+  let body = extractBody(decode(value));
   let previous: string;
 
   do {
