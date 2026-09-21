@@ -1,147 +1,90 @@
 'use client';
 
-import { AlertCircle, Loader2, LogIn } from 'lucide-react';
-import { usePathname, useRouter } from 'next/navigation';
-import type { ReactNode } from 'react';
-import { useCallback, useEffect, useMemo, useState } from 'react';
+import { FlowMark } from '@/components/brand/FlowMark';
 import { Alert, AlertDescription } from '@/components/ui/alert';
 import { Button } from '@/components/ui/button';
 import {
-  Card,
-  CardContent,
-  CardDescription,
-  CardHeader,
-  CardTitle,
+    Card,
+    CardContent,
+    CardDescription,
+    CardHeader,
+    CardTitle,
 } from '@/components/ui/card';
-import { FlowMark } from '@/components/brand/FlowMark';
-import { apiUrl } from '@/lib/api';
+import { AlertCircle, Loader2, LogIn } from 'lucide-react';
 import styles from './AuthGate.module.css';
-
-type AuthGateProps = {
-  children: (props: {
-    onLock: () => Promise<void>;
-    session: AuthenticatedFlowSession;
-  }) => ReactNode;
-};
-
-type FlowAccessSession =
-  | { granted: true; expiresAt: string; keyLabel: string; permission: 'read' | 'write' | 'full' }
-  | { granted: false; expiresAt?: never; keyLabel?: never };
-
-type AuthenticatedFlowSession = Extract<FlowAccessSession, { granted: true }>;
-
-type GateState =
-  | { message: string; status: 'checking' }
-  | { message: null; session: AuthenticatedFlowSession; status: 'ready' }
-  | { message: string; status: 'error' };
+import { AuthGateProps } from './auth.types';
+import {
+    useAuthGate
+} from './useAuthGate';
 
 export function AuthGate({ children }: AuthGateProps) {
-  const pathname = usePathname();
-  const router = useRouter();
-  const nextPath = useMemo(() => pathname || '/', [pathname]);
-  const [gateState, setGateState] = useState<GateState>({
-    message: 'Checking Flow access key...',
-    status: 'checking',
-  });
+    const { gateState, handleEnterKey, handleLock } = useAuthGate();
 
-  useEffect(() => {
-    let active = true;
+    if (gateState.status === 'checking') {
+        return (
+            <main className={styles.shell}>
+                <div className={styles.loadingPanel} role="status" aria-live="polite">
+                    <div className={styles.loadingIdentity}>
+                        <FlowMark className={styles.brandMark} size="lg" />
+                        <div>
+                            <span className={styles.productLabel}>Flow Mail</span>
+                            <span className={styles.secureLabel}>Private workspace</span>
+                        </div>
+                    </div>
+                    <div className={styles.loadingCopy}>
+                        <span className={styles.statusLabel}>
+                            <span className={styles.statusDot} />
+                            Verifying access
+                        </span>
+                        <h1>Preparing your inbox</h1>
+                        <p>{gateState.message}</p>
+                    </div>
+                    <div className={styles.progressTrack} aria-hidden="true">
+                        <span className={styles.progressBar} />
+                    </div>
+                    <div className={styles.loadingFooter}>
+                        <Loader2 className={styles.loader} aria-hidden="true" />
+                        <span>Encrypted session check</span>
+                    </div>
+                </div>
+            </main>
+        );
+    }
 
-    fetch(apiUrl('/flow/access/session'), {
-      cache: 'no-store',
-      credentials: 'include',
-    })
-      .then(response => response.json())
-      .then((session: FlowAccessSession) => {
-        if (!active) return;
+    if (gateState.status === 'error') {
+        return (
+            <main className={styles.shell}>
+                <Card className={styles.card} size="sm">
+                    <CardHeader className={styles.header}>
+                        <div className={styles.errorMark} aria-hidden="true">
+                            <AlertCircle className="size-5" />
+                        </div>
+                        <CardTitle>Access needs attention</CardTitle>
+                        <CardDescription>
+                            Flow could not confirm your key.
+                        </CardDescription>
+                    </CardHeader>
+                    <CardContent className={styles.errorContent}>
+                        <Alert className={styles.alert} variant="destructive">
+                            <AlertCircle className="size-4" />
+                            <AlertDescription>{gateState.message}</AlertDescription>
+                        </Alert>
+                        <Button
+                            type="button"
+                            className={styles.retryButton}
+                            onClick={handleEnterKey}
+                        >
+                            <LogIn className="size-4" />
+                            Enter access key
+                        </Button>
+                    </CardContent>
+                </Card>
+            </main>
+        );
+    }
 
-        if (session.granted) {
-          setGateState({ message: null, session, status: 'ready' });
-          return;
-        }
-
-        router.replace(`/login?next=${encodeURIComponent(nextPath)}`);
-      })
-      .catch(error => {
-        if (!active) return;
-        setGateState({
-          message:
-            error instanceof Error
-              ? error.message
-              : 'Flow access could not be checked.',
-          status: 'error',
-        });
-      });
-
-    return () => {
-      active = false;
-    };
-  }, [nextPath, router]);
-
-  const handleEnterKey = useCallback(() => {
-    router.replace(`/login?next=${encodeURIComponent(nextPath)}`);
-  }, [nextPath, router]);
-
-  const handleLock = useCallback(async () => {
-    await fetch(apiUrl('/flow/access/session'), {
-      credentials: 'include',
-      method: 'DELETE',
+    return children({
+        onLock: handleLock,
+        session: gateState.session,
     });
-    router.replace(`/login?next=${encodeURIComponent(nextPath)}`);
-    router.refresh();
-  }, [nextPath, router]);
-
-  if (gateState.status === 'checking') {
-    return (
-      <main className={styles.shell}>
-        <Card className={styles.card} size="sm">
-          <CardContent className={styles.loadingContent}>
-            <FlowMark className={styles.brandMark} size="md" />
-            <div className={styles.copy}>
-              <h1>Securing Flow</h1>
-              <p>{gateState.message}</p>
-            </div>
-            <Loader2 className={styles.loader} aria-hidden="true" />
-          </CardContent>
-        </Card>
-      </main>
-    );
-  }
-
-  if (gateState.status === 'error') {
-    return (
-      <main className={styles.shell}>
-        <Card className={styles.card} size="sm">
-          <CardHeader className={styles.header}>
-            <div className={styles.errorMark} aria-hidden="true">
-              <AlertCircle className="size-5" />
-            </div>
-            <CardTitle>Access needs attention</CardTitle>
-            <CardDescription>
-              Flow could not confirm your key.
-            </CardDescription>
-          </CardHeader>
-          <CardContent className={styles.errorContent}>
-            <Alert className={styles.alert} variant="destructive">
-              <AlertCircle className="size-4" />
-              <AlertDescription>{gateState.message}</AlertDescription>
-            </Alert>
-            <Button
-              type="button"
-              className={styles.retryButton}
-              onClick={handleEnterKey}
-            >
-              <LogIn className="size-4" />
-              Enter access key
-            </Button>
-          </CardContent>
-        </Card>
-      </main>
-    );
-  }
-
-  return children({
-    onLock: handleLock,
-    session: gateState.session,
-  });
 }
