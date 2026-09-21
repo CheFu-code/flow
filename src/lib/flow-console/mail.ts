@@ -92,6 +92,34 @@ export function toMailMessage(message: BackendMessage): MailMessage {
   };
 }
 
+export function mergeMailMessageContent(
+  existing: Partial<MailMessage> | MailMessage,
+  incoming: Partial<MailMessage> | MailMessage,
+): MailMessage {
+  const merged = { ...existing, ...incoming } as MailMessage;
+  const existingBody = String(existing.body || existing.html || '').trim();
+  const incomingBody = String(incoming.body || incoming.html || '').trim();
+  const incomingPreview = String(incoming.preview || '').trim();
+  const isCompressedPreview =
+    incomingBody.length > 0 &&
+    !incoming.contentLoaded &&
+    !incoming.html &&
+    incomingBody === incomingPreview &&
+    existingBody.length > incomingBody.length;
+
+  if (isCompressedPreview && existing.contentLoaded) {
+    return {
+      ...merged,
+      body: existing.body || merged.body,
+      contentLoaded: true,
+      html: existing.html || merged.html,
+      preview: existing.preview || merged.preview,
+    };
+  }
+
+  return merged;
+}
+
 export function messageThreadKey(message: MailMessage) {
   return message.threadKey || `message:${message.id}`;
 }

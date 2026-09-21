@@ -9,6 +9,7 @@ import {
   backendFolderFor,
   groupMessagesIntoThreads,
   mapCounts,
+  mergeMailMessageContent,
   sortByDateDesc,
   toMailMessage,
 } from '@/lib/flow-console/mail';
@@ -230,7 +231,8 @@ export function useMailbox({ onStatusChange, onDraftDetected }: UseMailboxOption
       .then(details => {
         setMessages(current => current.map(message => {
           const detail = details.find(item => item.id === message.id);
-          return detail ? { ...message, ...detail } : message;
+          if (!detail) return message;
+          return mergeMailMessageContent(message, detail);
         }));
         const draft = details.find(message => message.folder === 'drafts');
         if (draft && selectedThread.latest.folder === 'drafts') {
@@ -374,13 +376,7 @@ export function useMailbox({ onStatusChange, onDraftDetected }: UseMailboxOption
         incoming.forEach(msg => {
           const existing = currentMap.get(msg.id);
           if (existing) {
-            // Update fields while preserving loaded body if incoming is just metadata
-            currentMap.set(msg.id, {
-              ...existing,
-              ...msg,
-              body: msg.body || existing.body,
-              contentLoaded: msg.contentLoaded || existing.contentLoaded,
-            });
+            currentMap.set(msg.id, mergeMailMessageContent(existing, msg));
           } else {
             // New incoming message arrived in real time!
             currentMap.set(msg.id, msg);
