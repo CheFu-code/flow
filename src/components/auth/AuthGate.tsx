@@ -118,7 +118,7 @@ export function AuthGate({ children }: AuthGateProps) {
             </div>
             <CardTitle>Access needs attention</CardTitle>
             <CardDescription>
-              Flow could not confirm a registered employee key.
+              Flow could not confirm your key.
             </CardDescription>
           </CardHeader>
           <CardContent className={styles.errorContent}>

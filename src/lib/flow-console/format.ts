@@ -16,6 +16,8 @@ export function formatListDate(value: string) {
 export function formatMessageDate(value: string) {
   return new Intl.DateTimeFormat('en', {
     day: 'numeric',
+    hour: 'numeric',
+    minute: '2-digit',
     month: 'long',
     year: 'numeric',
   }).format(new Date(value));
