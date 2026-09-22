@@ -1,5 +1,10 @@
 import { FlowApp } from '@/components/FlowApp';
+import { Suspense } from 'react';
 
 export default function Home() {
-  return <FlowApp />;
+  return (
+    <Suspense fallback={null}>
+      <FlowApp />
+    </Suspense>
+  );
 }
