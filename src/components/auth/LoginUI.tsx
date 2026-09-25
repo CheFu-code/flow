@@ -1,5 +1,5 @@
 import { FlowMark } from "../brand/FlowMark";
-import { AlertCircle, KeyRound, Loader2, ShieldCheck } from "lucide-react";
+import { AlertCircle, Loader2 } from "lucide-react";
 import styles from "./LoginClient.module.css";
 import Link from "next/link";
 import { Dispatch, FormEvent, SetStateAction } from "react";
@@ -23,50 +23,59 @@ const LoginUI = ({
 }) => {
     const isLoading = isCheckingSession || isSubmitting;
 
+    const statusLabel = isCheckingSession
+        ? "Checking"
+        : isSubmitting
+          ? "Verifying"
+          : "Ready";
+
+    const buttonLabel = isCheckingSession
+        ? "Checking session"
+        : isSubmitting
+          ? "Verifying key"
+          : "Unlock access";
+
     return (
         <main className={styles.shell}>
-            <div className={styles.glow} />
-
             <section className={styles.panel} aria-label="Flow access">
-                <div className={styles.header}>
-                    <div className={styles.logoWrap}>
-                        <FlowMark className={styles.brandMark} size="lg" />
+                <div className={styles.topbar}>
+                    <div className={styles.brand}>
+                        <FlowMark className={styles.brandMark} size="sm" />
+                        <span>Flow</span>
                     </div>
 
+                    <div className={styles.status} data-loading={isLoading}>
+                        <span className={styles.statusDot} aria-hidden="true" />
+                        <span>{statusLabel}</span>
+                    </div>
+                </div>
 
-                    <h1>Welcome back.</h1>
-
-                    <p>
-                        Enter your employee access key to continue to your
-                        workspace.
-                    </p>
+                <div className={styles.intro}>
+                    <h1>Employee access</h1>
+                    <p>Enter the access key issued by your workspace admin.</p>
                 </div>
 
                 <form className={styles.form} onSubmit={submitAccessKey}>
                     <label className={styles.keyField}>
                         <span>Access key</span>
 
-                        <div className={styles.inputWrap}>
-                            <KeyRound size={18} strokeWidth={1.8} />
-
-                            <input
-                                autoComplete="one-time-code"
-                                autoFocus
-                                disabled={isLoading}
-                                inputMode="text"
-                                onChange={(event) =>
-                                    setAccessKey(event.target.value)
-                                }
-                                placeholder="FLOW-XXXX-XXXX"
-                                type="password"
-                                value={accessKey}
-                            />
-                        </div>
+                        <input
+                            autoComplete="one-time-code"
+                            autoFocus
+                            disabled={isLoading}
+                            inputMode="text"
+                            onChange={(event) =>
+                                setAccessKey(event.target.value)
+                            }
+                            placeholder="FLOW-0000-0000"
+                            type="password"
+                            value={accessKey}
+                        />
                     </label>
 
                     {error ? (
                         <p className={styles.error} role="alert">
-                            <AlertCircle size={16} />
+                            <AlertCircle size={15} />
                             <span>{error}</span>
                         </p>
                     ) : null}
@@ -77,44 +86,13 @@ const LoginUI = ({
                         type="submit"
                     >
                         {isLoading ? (
-                            <Loader2 className={styles.spin} size={18} />
-                        ) : (
-                            <ShieldCheck size={18} />
-                        )}
-
-                        <span>
-                            {isCheckingSession
-                                ? "Checking session"
-                                : isSubmitting
-                                  ? "Verifying access"
-                                  : "Continue to Flow"}
-                        </span>
+                            <Loader2 className={styles.spin} size={16} />
+                        ) : null}
+                        <span>{buttonLabel}</span>
                     </button>
                 </form>
-
-                <div className={styles.divider}>
-                    <span />
-                    <small>SECURE EMPLOYEE ACCESS</small>
-                    <span />
-                </div>
-
-                <div className={styles.footer}>
-                    <p>
-                        Don&apos;t have an access key?
-                    </p>
-
-                    <Link
-                        href={`/register?next=${encodeURIComponent(nextPath)}`}
-                    >
-                        Activate your key
-                        <span aria-hidden="true">→</span>
-                    </Link>
-                </div>
             </section>
 
-            <p className={styles.legal}>
-                Authorized employees only
-            </p>
         </main>
     );
 };

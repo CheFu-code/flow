@@ -25,7 +25,7 @@ export function AuthGate({ children }: AuthGateProps) {
             <main className={styles.shell}>
                 <div className={styles.loadingPanel} role="status" aria-live="polite">
                     <div className={styles.loadingIdentity}>
-                        <FlowMark className={styles.brandMark} size="lg" />
+                        <FlowMark className={styles.brandMark} size="sm" />
                         <div>
                             <span className={styles.productLabel}>Flow Mail</span>
                             <span className={styles.secureLabel}>Private workspace</span>
