@@ -9,12 +9,20 @@ const allowedTags = [
   'dt', 'em', 'font', 'h1', 'h2', 'h3', 'h4', 'h5', 'h6', 'hr', 'i', 'img',
   'li', 'ol', 'p', 'pre', 's', 'small', 'span', 'strong', 'sub', 'sup',
   'table', 'tbody', 'td', 'tfoot', 'th', 'thead', 'tr', 'u', 'ul',
+  // Email layout primitives
+  'head', 'style', 'meta', 'title',
 ];
 
 const allowedAttributes = {
   a: ['href', 'title', 'target', 'rel'],
   img: ['alt', 'height', 'src', 'title', 'width'],
-  '*': ['align', 'bgcolor', 'border', 'cellpadding', 'cellspacing', 'class', 'colspan', 'height', 'role', 'rowspan', 'valign', 'width'],
+  meta: ['name', 'content', 'charset', 'http-equiv'],
+  '*': [
+    'align', 'bgcolor', 'border', 'cellpadding', 'cellspacing', 'class',
+    'colspan', 'height', 'role', 'rowspan', 'valign', 'width',
+    // Preserve inline styles (javascript: expressions are blocked below)
+    'style',
+  ],
 };
 
 export function renderReaderMessageHtml(message: MailMessage) {
@@ -65,18 +73,31 @@ export function renderReaderPrintDocument(thread: MailThread) {
 </html>`;
 }
 
-function sanitizeReaderHtml(value: string) {
-  return sanitizeHtml(extractBody(decode(value)), {
-    allowedTags,
+/** Strip javascript: expressions from inline style values before they reach the DOM */
+function sanitizeStyleAttr(value: string) {
+  return value.replace(/expression\s*\(/gi, '').replace(/javascript\s*:/gi, '');
+}
+
+export function sanitizeReaderHtml(value: string) {
+  return sanitizeHtml(decode(value), {
+    allowedTags: false as unknown as string[], // allow ALL tags — iframe renders in sandbox
     allowedAttributes,
-    allowedSchemes: ['http', 'https', 'mailto', 'tel'],
+    allowedSchemes: ['http', 'https', 'mailto', 'tel', 'cid'],
     allowedSchemesByTag: {
       a: ['http', 'https', 'mailto', 'tel'],
-      img: ['http', 'https'],
+      img: ['http', 'https', 'cid'],
     },
     allowProtocolRelative: false,
     disallowedTagsMode: 'discard',
-    enforceHtmlBoundary: true,
+    // Strip javascript: from style values to prevent CSS-based XSS
+    transformTags: {
+      '*': (tagName, attribs) => ({
+        tagName,
+        attribs: attribs['style']
+          ? { ...attribs, style: sanitizeStyleAttr(attribs['style']) }
+          : attribs,
+      }),
+    },
   });
 }
 

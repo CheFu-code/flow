@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, type MouseEvent } from 'react';
+import { useCallback, useRef, useState, type MouseEvent } from 'react';
 import {
   Copy,
   Download,
@@ -66,6 +66,15 @@ export function ReaderMessageItem({
 }: ReaderMessageItemProps) {
   const [menuOpen, setMenuOpen] = useState(false);
   const [reactionOpen, setReactionOpen] = useState(false);
+  const iframeRef = useRef<HTMLIFrameElement>(null);
+
+  const handleIframeLoad = useCallback(() => {
+    const iframe = iframeRef.current;
+    if (!iframe?.contentWindow?.document?.documentElement) return;
+    // Auto-size the iframe to the email's natural height
+    const height = iframe.contentWindow.document.documentElement.scrollHeight;
+    iframe.style.height = `${height}px`;
+  }, []);
 
   const contact = contactFromMessage(message);
   const initial = getInitial(message.name || message.from);
@@ -226,12 +235,15 @@ export function ReaderMessageItem({
             </div>
           ) : null}
 
-          <div
-            className={styles.readerHtml}
-            dangerouslySetInnerHTML={{
-              __html: renderReaderMessageHtml(message),
-            }}
+          <iframe
+            ref={iframeRef}
+            className={styles.readerIframe}
+            onLoad={handleIframeLoad}
+            sandbox="allow-same-origin allow-popups allow-popups-to-escape-sandbox"
+            srcDoc={renderReaderMessageHtml(message)}
+            title={`Email from ${contact.name}`}
           />
+
 
           {isLast && thread.reactions.length > 0 ? (
             <div aria-label="Message reactions" className="flex flex-wrap gap-1.5 pt-2">

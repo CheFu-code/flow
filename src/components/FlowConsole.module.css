@@ -1198,6 +1198,19 @@
   overflow: hidden;
 }
 
+/* Sandboxed iframe email renderer — replaces dangerouslySetInnerHTML */
+.readerIframe {
+  display: block;
+  width: min(100%, 940px);
+  min-height: 120px;
+  height: auto;
+  margin: 4px auto 0;
+  border: 1px solid var(--fc-border-subtle);
+  border-radius: 10px;
+  background: #ffffff;
+  overflow: hidden;
+}
+
 .readerHtml img,
 .readerHtml table {
   max-width: 100%;
