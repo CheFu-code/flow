@@ -1579,6 +1579,176 @@
   pointer-events: none;
 }
 
+.flowEmailEditorWrap {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  min-height: 200px;
+  position: relative;
+  overflow: hidden;
+  --re-bg: var(--fc-bg-surface);
+  --re-border: var(--fc-border);
+  --re-text: var(--fc-text-primary);
+  --re-text-muted: var(--fc-text-muted);
+  --re-hover: var(--fc-hover);
+  --re-active: var(--fc-hover-active);
+  --re-pressed: var(--fc-hover-active);
+  --re-separator: var(--fc-border-subtle);
+  --re-radius: 8px;
+}
+
+.editorWorkspaceFlex {
+  flex: 1;
+  display: flex;
+  min-height: 200px;
+  position: relative;
+  overflow: hidden;
+}
+
+.flowEmailEditorRoot {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  padding: 16px;
+  color: var(--fc-text-primary);
+  font-size: 14px;
+  line-height: 1.6;
+  overflow-y: auto;
+}
+
+.flowEmailEditorRoot :global(.tiptap) {
+  flex: 1;
+  min-height: 160px;
+  outline: none;
+}
+
+.flowEmailEditorRoot :global(.tiptap p) {
+  margin: 0 0 0.75em;
+}
+
+.flowEmailEditorRoot :global(.tiptap h1) {
+  font-size: 1.5rem;
+  font-weight: 600;
+  margin: 1em 0 0.5em;
+}
+
+.flowEmailEditorRoot :global(.tiptap h2) {
+  font-size: 1.25rem;
+  font-weight: 600;
+  margin: 0.85em 0 0.4em;
+}
+
+.flowEmailEditorRoot :global(.tiptap h3) {
+  font-size: 1.1rem;
+  font-weight: 600;
+  margin: 0.75em 0 0.35em;
+}
+
+.flowEmailEditorRoot :global(.tiptap blockquote) {
+  border-left: 3px solid var(--fc-accent, #0f766e);
+  margin: 0.75em 0;
+  padding-left: 12px;
+  color: var(--fc-text-secondary);
+}
+
+.flowEmailEditorRoot :global(.tiptap ul),
+.flowEmailEditorRoot :global(.tiptap ol) {
+  padding-left: 1.5rem;
+  margin: 0.5em 0;
+}
+
+.flowEmailEditorRoot :global(.tiptap hr) {
+  border: none;
+  border-top: 1px solid var(--fc-border);
+  margin: 1.25em 0;
+}
+
+.flowEmailEditorRoot :global(.tiptap a) {
+  color: var(--fc-accent, #0f766e);
+  text-decoration: underline;
+}
+
+.flowInspectorPanel {
+  width: 290px;
+  min-width: 270px;
+  max-width: 320px;
+  border-left: 1px solid var(--fc-border);
+  background: var(--fc-bg-surface);
+  display: flex;
+  flex-direction: column;
+  z-index: 10;
+  overflow: hidden;
+  animation: fadeIn 0.15s ease-out;
+}
+
+.flowInspectorHeader {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 8px 12px;
+  border-bottom: 1px solid var(--fc-border-subtle);
+  background: var(--fc-bg-muted);
+}
+
+.flowInspectorTitle {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 11px;
+  font-weight: 600;
+  color: var(--fc-text-primary);
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+}
+
+.flowInspectorCloseBtn {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 20px;
+  height: 20px;
+  border-radius: 4px;
+  border: none;
+  background: transparent;
+  color: var(--fc-text-muted);
+  cursor: pointer;
+  transition: all 0.15s ease;
+}
+
+.flowInspectorCloseBtn:hover {
+  background: var(--fc-hover);
+  color: var(--fc-text-primary);
+}
+
+.flowInspectorScroll {
+  flex: 1;
+  overflow-y: auto;
+  padding-bottom: 16px;
+}
+
+.flowInspectorBreadcrumbs {
+  padding: 8px 12px;
+  border-bottom: 1px solid var(--fc-border-subtle);
+  background: var(--fc-bg-surface);
+  font-size: 11px;
+}
+
+.flowInspectorSections {
+  padding: 10px 12px;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.composeEditorLoading {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  min-height: 180px;
+  color: var(--fc-text-muted);
+  font-size: 13px;
+}
+
 .attachmentStrip {
   display: flex;
   flex-wrap: wrap;

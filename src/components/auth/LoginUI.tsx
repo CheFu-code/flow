@@ -100,7 +100,7 @@ const LoginUI = ({
 
                 <div className={styles.footer}>
                     <p>
-                        Don't have an access key?
+                        Don&apos;t have an access key?
                     </p>
 
                     <Link

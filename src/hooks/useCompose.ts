@@ -24,6 +24,7 @@ import {
 } from '@/lib/flow-console/constants';
 import { responseJson } from '@/lib/flow-console/http';
 import { realtimeBus } from '@/lib/flow-console/realtime';
+import type { FlowEmailEditorRef } from '@/components/flow-console/compose/FlowEmailEditor';
 import type {
   AccessSession,
   ComposeAttachment,
@@ -107,7 +108,7 @@ export function useCompose({
   const [undoSendState, setUndoSendState] = useState<UndoSendState | null>(null);
   const pendingSendRef = useRef<UndoSendState | null>(null);
 
-  const composeEditorRef = useRef<HTMLDivElement | null>(null);
+  const composeEditorRef = useRef<FlowEmailEditorRef | null>(null);
   const composeFormRef = useRef<HTMLFormElement | null>(null);
   const attachmentInputRef = useRef<HTMLInputElement | null>(null);
   const imageInputRef = useRef<HTMLInputElement | null>(null);
@@ -151,7 +152,7 @@ export function useCompose({
   );
 
   const currentComposeBody = useCallback(
-    () => composeEditorRef.current?.innerHTML || composeFields.body,
+    () => composeEditorRef.current?.getHtml?.() || composeFields.body,
     [composeFields.body],
   );
 
@@ -161,96 +162,43 @@ export function useCompose({
   }, [currentComposeBody]);
 
   const focusComposeEditor = useCallback(() => {
-    composeEditorRef.current?.focus();
+    composeEditorRef.current?.focus?.();
   }, []);
 
   const runEditorCommand = useCallback(
     (command: string, value?: string) => {
       if (isSending) return;
-      focusComposeEditor();
-      document.execCommand(command, false, value);
+      composeEditorRef.current?.runCommand?.(command, value);
       syncComposeBody();
     },
-    [focusComposeEditor, isSending, syncComposeBody],
+    [isSending, syncComposeBody],
   );
 
   const insertEditorHtml = useCallback(
     (html: string) => {
       if (isSending) return;
-      focusComposeEditor();
-      document.execCommand('insertHTML', false, html);
+      composeEditorRef.current?.insertHtml?.(html);
       syncComposeBody();
     },
-    [focusComposeEditor, isSending, syncComposeBody],
+    [isSending, syncComposeBody],
   );
 
   const insertEditorText = useCallback(
     (text: string) => {
       if (isSending) return;
-      focusComposeEditor();
-      document.execCommand('insertText', false, text);
+      composeEditorRef.current?.insertText?.(text);
       syncComposeBody();
     },
-    [focusComposeEditor, isSending, syncComposeBody],
+    [isSending, syncComposeBody],
   );
 
   const insertEditorList = useCallback(
     (ordered: boolean) => {
-      const editor = composeEditorRef.current;
-      if (!editor || isSending) return;
-
-      focusComposeEditor();
-      const selection = window.getSelection();
-      const selectedRange =
-        selection?.rangeCount && selection.anchorNode
-          ? selection.getRangeAt(0)
-          : null;
-      const range =
-        selectedRange && editor.contains(selectedRange.commonAncestorContainer)
-          ? selectedRange
-          : document.createRange();
-
-      if (!selectedRange || !editor.contains(selectedRange.commonAncestorContainer)) {
-        range.selectNodeContents(editor);
-        range.collapse(false);
-      }
-
-      const selectedText =
-        selection && editor.contains(range.commonAncestorContainer)
-          ? selection.toString()
-          : '';
-      const lines = selectedText
-        .split(/\r?\n/)
-        .map(line => line.trim())
-        .filter(Boolean);
-      const items = lines.length ? lines : [''];
-      const list = document.createElement(ordered ? 'ol' : 'ul');
-
-      items.forEach(line => {
-        const item = document.createElement('li');
-        if (line) {
-          item.textContent = line;
-        } else {
-          item.appendChild(document.createElement('br'));
-        }
-        list.appendChild(item);
-      });
-
-      range.deleteContents();
-      range.insertNode(list);
-
-      const lastItem = list.lastElementChild;
-      if (lastItem && selection) {
-        const caret = document.createRange();
-        caret.selectNodeContents(lastItem);
-        caret.collapse(false);
-        selection.removeAllRanges();
-        selection.addRange(caret);
-      }
-
+      if (isSending) return;
+      composeEditorRef.current?.insertList?.(ordered);
       syncComposeBody();
     },
-    [focusComposeEditor, isSending, syncComposeBody],
+    [isSending, syncComposeBody],
   );
 
   const handleEditorPaste = useCallback(
@@ -310,15 +258,12 @@ export function useCompose({
   );
 
   const clearEditorFormatting = useCallback(() => {
-    runEditorCommand('removeFormat');
-    runEditorCommand('unlink');
-  }, [runEditorCommand]);
+    composeEditorRef.current?.clearFormatting?.();
+    syncComposeBody();
+  }, [syncComposeBody]);
 
   const removeAllFormatting = useCallback(() => {
-    const text = composeEditorRef.current?.innerText || '';
-    if (composeEditorRef.current) {
-      composeEditorRef.current.textContent = text;
-    }
+    composeEditorRef.current?.clearFormatting?.();
     syncComposeBody();
     setMoreToolsOpen(false);
   }, [syncComposeBody]);
@@ -415,7 +360,7 @@ export function useCompose({
     try {
       window.localStorage.removeItem(DRAFT_STORAGE_KEY);
     } catch {}
-    if (composeEditorRef.current) composeEditorRef.current.innerHTML = '';
+    if (composeEditorRef.current) composeEditorRef.current.clear?.();
   }, []);
 
   const hasDraftContent =
@@ -424,11 +369,12 @@ export function useCompose({
     composeFields.body.trim() ||
     composeAttachments.length > 0;
 
-  // Synchronize editor innerHTML if editor mounts with restored draft body
+  // Synchronize editor if editor mounts with restored draft body
   useEffect(() => {
     if (composeOpen && composeEditorRef.current && composeFields.body) {
-      if (!composeEditorRef.current.innerHTML) {
-        composeEditorRef.current.innerHTML = composeFields.body;
+      const current = composeEditorRef.current.getHtml?.();
+      if (!current || current === '<p></p>') {
+        composeEditorRef.current.setHtml?.(composeFields.body);
       }
     }
   }, [composeOpen, composeFields.body]);
@@ -758,7 +704,7 @@ export function useCompose({
 
     window.requestAnimationFrame(() => {
       if (composeEditorRef.current) {
-        composeEditorRef.current.innerHTML = state.body;
+        composeEditorRef.current.setHtml?.(state.body);
       }
     });
 
@@ -791,7 +737,17 @@ export function useCompose({
       if (!canWrite || sendLockRef.current) return;
 
       const recipients = composeRecipients;
-      const body = currentComposeBody();
+      let body = currentComposeBody();
+      if (composeEditorRef.current?.getEmailHtml) {
+        try {
+          const emailHtml = await composeEditorRef.current.getEmailHtml();
+          if (emailHtml?.trim()) {
+            body = emailHtml;
+          }
+        } catch {
+          // fallback to currentComposeBody
+        }
+      }
 
       if (!recipients.length) {
         onStatusChange({ kind: 'info', text: 'Enter at least one valid recipient.' });

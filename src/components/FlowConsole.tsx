@@ -55,7 +55,7 @@ import type {
             compose.setComposeOpen(true);
             window.requestAnimationFrame(() => {
               if (compose.composeEditorRef.current) {
-                compose.composeEditorRef.current.innerHTML = draft.body;
+                compose.composeEditorRef.current.setHtml?.(draft.body);
               }
             });
           },

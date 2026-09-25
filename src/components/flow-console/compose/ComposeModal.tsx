@@ -1,6 +1,7 @@
 'use client';
 
 import {
+  useState,
   type ChangeEvent,
   type ClipboardEvent,
   type FormEvent,
@@ -19,12 +20,13 @@ import type {
   DraftSaveState,
   FlowSender,
 } from '@/lib/flow-console/types';
+import { FlowEmailEditor, type FlowEmailEditorRef } from './FlowEmailEditor';
 import styles from '@/components/FlowConsole.module.css';
 
 export interface ComposeModalProps {
   attachmentInputRef: RefObject<HTMLInputElement | null>;
   composeAttachments: ComposeAttachment[];
-  composeEditorRef: RefObject<HTMLDivElement | null>;
+  composeEditorRef: RefObject<FlowEmailEditorRef | null>;
   composeExpanded: boolean;
   composeFields: ComposeFields;
   composeFormRef: RefObject<HTMLFormElement | null>;
@@ -99,7 +101,6 @@ export function ComposeModal({
   onClearFormatting,
   onDiscard,
   onEditorInput,
-  onEditorPaste,
   onInsertConfidential,
   onInsertDivider,
   onInsertDriveLink,
@@ -128,6 +129,8 @@ export function ComposeModal({
   sendOptionsOpen,
   senders,
 }: ComposeModalProps) {
+  const [inspectorOpen, setInspectorOpen] = useState(false);
+
   if (!composeOpen) return null;
 
   return (
@@ -183,16 +186,19 @@ export function ComposeModal({
           />
         </label>
 
-        <div
-          aria-label="Message body"
-          className={styles.composeBody}
-          contentEditable={!isSending}
-          data-placeholder="Write your message here..."
-          onInput={onEditorInput}
-          onPaste={onEditorPaste}
+        <FlowEmailEditor
+          initialContent={composeFields.body}
+          isSending={isSending}
+          onChange={html => {
+            onUpdateField('body')({
+              target: { value: html },
+            } as ChangeEvent<HTMLTextAreaElement>);
+            onEditorInput?.();
+          }}
+          onToggleInspector={() => setInspectorOpen(prev => !prev)}
+          placeholder="Write your message here... (press '/' for commands)"
           ref={composeEditorRef}
-          role="textbox"
-          suppressContentEditableWarning
+          showInspector={inspectorOpen}
         />
 
         <ComposeAttachmentStrip
@@ -214,6 +220,7 @@ export function ComposeModal({
           draftSaveState={draftSaveState}
           emojiPickerOpen={emojiPickerOpen}
           formatToolbarOpen={formatToolbarOpen}
+          inspectorOpen={inspectorOpen}
           isSending={isSending}
           moreToolsOpen={moreToolsOpen}
           onDiscard={onDiscard}
@@ -229,6 +236,7 @@ export function ComposeModal({
           onSendNow={onSendNow}
           onToggleEmojiPicker={onToggleEmojiPicker}
           onToggleFormatToolbar={onToggleFormatToolbar}
+          onToggleInspector={() => setInspectorOpen(prev => !prev)}
           onToggleMoreTools={onToggleMoreTools}
           onToggleSendOptions={onToggleSendOptions}
           onTriggerAttachment={() => attachmentInputRef.current?.click()}

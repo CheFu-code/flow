@@ -14,6 +14,7 @@ import {
   Paperclip,
   PenLine,
   Send,
+  SlidersHorizontal,
   Smile,
   Sparkles,
   Trash2,
@@ -28,6 +29,7 @@ export interface ComposeFooterProps {
   draftSaveState?: DraftSaveState;
   emojiPickerOpen: boolean;
   formatToolbarOpen: boolean;
+  inspectorOpen?: boolean;
   isSending: boolean;
   moreToolsOpen: boolean;
   onDiscard: () => void;
@@ -43,6 +45,7 @@ export interface ComposeFooterProps {
   onSendNow: () => void;
   onToggleEmojiPicker: () => void;
   onToggleFormatToolbar: () => void;
+  onToggleInspector?: () => void;
   onToggleMoreTools: () => void;
   onToggleSendOptions: () => void;
   onTriggerAttachment: () => void;
@@ -54,6 +57,7 @@ export function ComposeFooter({
   draftSaveState,
   emojiPickerOpen,
   formatToolbarOpen,
+  inspectorOpen = false,
   isSending,
   moreToolsOpen,
   onDiscard,
@@ -69,6 +73,7 @@ export function ComposeFooter({
   onSendNow,
   onToggleEmojiPicker,
   onToggleFormatToolbar,
+  onToggleInspector,
   onToggleMoreTools,
   onToggleSendOptions,
   onTriggerAttachment,
@@ -141,6 +146,24 @@ export function ComposeFooter({
         >
           <CaseSensitive size={19} />
         </button>
+
+        {onToggleInspector ? (
+          <button
+            aria-expanded={inspectorOpen}
+            aria-label="Toggle Design Inspector"
+            className={
+              inspectorOpen
+                ? `${styles.footerToolButton} ${styles.footerToolActive}`
+                : styles.footerToolButton
+            }
+            data-tooltip="Design Inspector (Style text &amp; blocks)"
+            disabled={isSending}
+            onClick={onToggleInspector}
+            type="button"
+          >
+            <SlidersHorizontal size={18} />
+          </button>
+        ) : null}
 
         <button
           aria-label="Attach files"
